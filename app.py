@@ -31,6 +31,24 @@ def init_db():
             criado_em TEXT DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS config (
+            chave TEXT PRIMARY KEY,
+            valor TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def get_config(chave, padrao=''):
+    conn = get_db()
+    row = conn.execute('SELECT valor FROM config WHERE chave=?', (chave,)).fetchone()
+    conn.close()
+    return row['valor'] if row else padrao
+
+def set_config(chave, valor):
+    conn = get_db()
+    conn.execute('INSERT OR REPLACE INTO config (chave, valor) VALUES (?, ?)', (chave, valor))
     conn.commit()
     conn.close()
 
@@ -81,6 +99,7 @@ def index():
     ultimo_km = ultimo_km['km'] if ultimo_km else None
 
     conn.close()
+    nome_carro = get_config('nome_carro', '')
     return render_template('index.html',
         registros=registros,
         totais=totais,
@@ -88,7 +107,8 @@ def index():
         tipo_filtro=tipo_filtro,
         ordem=ordem,
         ultimo_km=ultimo_km,
-        logado=session.get('logado', False)
+        logado=session.get('logado', False),
+        nome_carro=nome_carro
     )
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -164,6 +184,17 @@ def excluir(id):
     conn.close()
     flash('Registro excluído.')
     return redirect(url_for('index'))
+
+@app.route('/configurar', methods=['GET', 'POST'])
+@login_required
+def configurar():
+    if request.method == 'POST':
+        nome = request.form.get('nome_carro', '').strip()
+        set_config('nome_carro', nome)
+        flash('Nome do carro salvo!')
+        return redirect(url_for('index'))
+    nome_atual = get_config('nome_carro', '')
+    return render_template('configurar.html', nome_atual=nome_atual)
 
 # ─── INICIAR ────────────────────────────────────────────────────
 if __name__ == '__main__':

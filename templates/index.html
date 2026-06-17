@@ -243,10 +243,11 @@
 <body>
 
 <header>
-  <div class="logo">🚗 MEU CARRO</div>
+  <div class="logo">🚗 {{ nome_carro if nome_carro else 'MEU CARRO' }}</div>
   <div class="header-actions">
     {% if logado %}
       <span class="status-badge status-on">🔓 Logado</span>
+      <a href="/configurar" class="btn btn-ghost">⚙️</a>
       <a href="/adicionar" class="btn btn-primary">+ Novo</a>
       <a href="/logout" class="btn btn-ghost">Sair</a>
     {% else %}
