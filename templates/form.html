@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ 'Editar' if registro else 'Novo Registro' }} — Meu Carro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Barlow+Condensed:wght@700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0f0f13;
+    color: #e8e8f0;
+    min-height: 100vh;
+  }
+  header {
+    background: #1a1a22;
+    border-bottom: 1px solid #2e2e3e;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: #f97316; }
+  .btn-ghost {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #2e2e3e;
+    background: #22222e;
+    color: #e8e8f0;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  main {
+    max-width: 560px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: #f97316;
+  }
+
+  .form-card {
+    background: #1a1a22;
+    border: 1px solid #2e2e3e;
+    border-radius: 14px;
+    padding: 28px;
+  }
+  .grupo { margin-bottom: 18px; }
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #7a7a9a;
+    margin-bottom: 7px;
+  }
+  label span { color: #f97316; }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 11px 14px;
+    background: #22222e;
+    border: 1px solid #2e2e3e;
+    border-radius: 8px;
+    color: #e8e8f0;
+    font-size: 0.92rem;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #f97316; }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* Tipo buttons */
+  .tipo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .tipo-btn {
+    padding: 10px 6px;
+    border-radius: 8px;
+    border: 2px solid #2e2e3e;
+    background: #22222e;
+    color: #7a7a9a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+  }
+  .tipo-btn .t-icon { font-size: 1.2rem; }
+  .tipo-btn input[type=radio] { display: none; }
+  .tipo-btn:has(input:checked),
+  .tipo-btn.ativo {
+    border-color: #f97316;
+    background: #1a0f00;
+    color: #f97316;
+  }
+
+  .btn-submit {
+    width: 100%;
+    padding: 13px;
+    background: #f97316;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.15s;
+  }
+  .btn-submit:hover { opacity: 0.85; }
+
+  .hint { font-size: 0.76rem; color: #5a5a7a; margin-top: 5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚗 MEU CARRO</div>
+  <a href="/" class="btn-ghost">← Voltar</a>
+</header>
+
+<main>
+  <h2>{{ '✏️ Editar Registro' if registro else '+ Novo Registro' }}</h2>
+
+  <div class="form-card">
+    <form method="POST">
+
+      <div class="grupo">
+        <label>Tipo <span>*</span></label>
+        <div class="tipo-grid">
+          {% set tipo_atual = registro.tipo if registro else '' %}
+          <label class="tipo-btn">
+            <input type="radio" name="tipo" value="combustivel" {% if tipo_atual=='combustivel' %}checked{% endif %} required>
+            <span class="t-icon">⛽</span>
+            Combustível
+          </label>
+          <label class="tipo-btn">
+            <input type="radio" name="tipo" value="manutencao" {% if tipo_atual=='manutencao' %}checked{% endif %}>
+            <span class="t-icon">🔧</span>
+            Manutenção
+          </label>
+          <label class="tipo-btn">
+            <input type="radio" name="tipo" value="peca" {% if tipo_atual=='peca' %}checked{% endif %}>
+            <span class="t-icon">⚙️</span>
+            Peça
+          </label>
+          <label class="tipo-btn">
+            <input type="radio" name="tipo" value="outros" {% if tipo_atual=='outros' %}checked{% endif %}>
+            <span class="t-icon">📋</span>
+            Outros
+          </label>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <label>Descrição <span>*</span></label>
+        <input type="text" name="descricao" required
+          placeholder="Ex: Troca de óleo, Abastecimento, Pastilha de freio..."
+          value="{{ registro.descricao if registro else '' }}">
+      </div>
+
+      <div class="grid2">
+        <div class="grupo">
+          <label>Valor (R$) <span>*</span></label>
+          <input type="text" name="valor" required
+            placeholder="0,00"
+            value="{{ '%.2f'|format(registro.valor) if registro else '' }}">
+        </div>
+        <div class="grupo">
+          <label>Data <span>*</span></label>
+          <input type="date" name="data" required
+            value="{{ registro.data if registro else hoje }}">
+        </div>
+      </div>
+
+      <div class="grupo">
+        <label>KM do carro <span style="color:#5a5a7a">(opcional)</span></label>
+        <input type="number" name="km" placeholder="Ex: 45000"
+          value="{{ registro.km if registro and registro.km else '' }}">
+        <p class="hint">Registrar o KM ajuda a acompanhar intervalos de manutenção</p>
+      </div>
+
+      <div class="grupo">
+        <label>Observações <span style="color:#5a5a7a">(opcional)</span></label>
+        <textarea name="observacao" placeholder="Detalhes extras, nome da oficina, marca da peça...">{{ registro.observacao if registro and registro.observacao else '' }}</textarea>
+      </div>
+
+      <button type="submit" class="btn-submit">
+        {{ '💾 Salvar alterações' if registro else '✅ Adicionar registro' }}
+      </button>
+    </form>
+  </div>
+</main>
+
+</body>
+</html>
