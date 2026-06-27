@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if registro %}Editar{% else %}Adicionar{% endif %} Registro</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .navbar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-bottom: 30px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-salvar {
+            background: #667eea;
+            color: white;
+        }
+        .btn-salvar:hover { background: #5568d3; }
+        .btn-cancelar {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-cancelar:hover { background: #e0e0e0; }
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .alert-sucesso {
+            background: #d4edda;
+            color: #155724;
+        }
+        .alert-erro {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1 style="margin: 0; border: none; padding: 0;">🚗 Sistema do Carro</h1>
+        <a href="{{ url_for('index') }}" style="color: #667eea; text-decoration: none;">Voltar</a>
+    </div>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <h1>{% if registro %}Editar Registro{% else %}Novo Registro{% endif %}</h1>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="tipo">Tipo *</label>
+                <select name="tipo" id="tipo" required>
+                    <option value="">Selecione um tipo...</option>
+                    <option value="Manutenção" {% if registro and registro['tipo'] == 'Manutenção' %}selected{% endif %}>Manutenção</option>
+                    <option value="Combustível" {% if registro and registro['tipo'] == 'Combustível' %}selected{% endif %}>Combustível</option>
+                    <option value="Seguro" {% if registro and registro['tipo'] == 'Seguro' %}selected{% endif %}>Seguro</option>
+                    <option value="Outro" {% if registro and registro['tipo'] == 'Outro' %}selected{% endif %}>Outro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="descricao">Descrição *</label>
+                <input type="text" name="descricao" id="descricao" placeholder="Ex: Troca de óleo" 
+                    value="{{ registro['descricao'] if registro else '' }}" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="valor">Valor (R$) *</label>
+                    <input type="number" name="valor" id="valor" step="0.01" min="0"
+                        placeholder="0.00" value="{{ registro['valor'] if registro else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="data">Data *</label>
+                    <input type="date" name="data" id="data" 
+                        value="{{ registro['data'] if registro else hoje }}" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="km">KM</label>
+                    <input type="number" name="km" id="km" min="0"
+                        value="{{ registro['km'] if registro and registro['km'] else '' }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="observacao">Observação</label>
+                <textarea name="observacao" id="observacao" rows="3" 
+                    placeholder="Detalhes adicionais (opcional)">{{ registro['observacao'] if registro and registro['observacao'] else '' }}</textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-salvar">
+                    {% if registro %}Atualizar{% else %}Adicionar{% endif %}
+                </button>
+                <a href="{{ url_for('index') }}" class="btn-cancelar" style="display: flex; align-items: center; justify-content: center; text-decoration: none;">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
