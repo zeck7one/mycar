@@ -210,7 +210,11 @@ def index():
         ordem=ordem,
         ultimo_km=ultimo_km,
         nome_usuario=session['nome'],
-        nome_carro=nome_carro
+        nome_carro=nome_carro,
+        logado=True  # <-- ADICIONADO: o template index.html usa {% if logado %}
+                      # para decidir se mostra os botões de Adicionar/Editar/Configurar.
+                      # Como essa rota só é acessada se o usuário já passou pelo
+                      # @login_required, aqui SEMPRE é True.
     )
 
 @app.route('/adicionar', methods=['GET', 'POST'])
