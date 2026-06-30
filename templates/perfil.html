@@ -190,7 +190,6 @@
     </style>
 
     <script>
-        // Carregar tema salvo
         document.addEventListener('DOMContentLoaded', function() {
             const temaSalvo = localStorage.getItem('tema') || '{{ session.get("tema", "claro") }}';
             if (temaSalvo === 'escuro') {
@@ -198,13 +197,10 @@
             }
         });
 
-        // Função pra mudar tema
         function alternarTema() {
             const estaEscuro = document.body.classList.toggle('escuro');
             const novaTema = estaEscuro ? 'escuro' : 'claro';
             localStorage.setItem('tema', novaTema);
-
-            // Enviar pro servidor
             fetch(`/mudar-tema/${novaTema}`);
         }
     </script>
@@ -241,7 +237,7 @@
 
         <div class="info-box">
             <p><strong>Email:</strong> {{ usuario['email'] }}</p>
-            <p><strong>Membro desde:</strong> {{ usuario['criado_em'][:10] }}</p>
+            <p><strong>Membro desde:</strong> {{ usuario['criado_em']|string|truncate(10, True, '') }}</p>
         </div>
 
         <form method="POST">

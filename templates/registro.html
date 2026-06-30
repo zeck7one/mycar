@@ -178,7 +178,6 @@
     </style>
 
     <script>
-        // Carregar tema salvo
         document.addEventListener('DOMContentLoaded', function() {
             const temaSalvo = localStorage.getItem('tema') || '{{ session.get("tema", "claro") }}';
             if (temaSalvo === 'escuro') {
@@ -186,13 +185,10 @@
             }
         });
 
-        // Função pra mudar tema
         function alternarTema() {
             const estaEscuro = document.body.classList.toggle('escuro');
             const novaTema = estaEscuro ? 'escuro' : 'claro';
             localStorage.setItem('tema', novaTema);
-
-            // Enviar pro servidor
             fetch(`/mudar-tema/${novaTema}`);
         }
     </script>
