@@ -71,7 +71,6 @@
   .btn:hover { opacity: 0.85; transform: translateY(-1px); }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-danger { background: #3a1a1a; color: var(--red); border: 1px solid #5a2a2a; }
 
   main { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
 
@@ -167,7 +166,8 @@
     border-top: 1px solid var(--border);
     vertical-align: middle;
   }
-  tr:hover td { background: rgba(255,255,255,0.02); }
+  tbody tr { cursor: pointer; transition: background 0.1s; }
+  tbody tr:hover td { background: rgba(255,255,255,0.04); }
 
   .badge {
     display: inline-block;
@@ -225,11 +225,140 @@
   .status-on  { background: #0a2a1a; color: var(--green); }
   .status-off { background: #2a2a2a; color: var(--muted); }
 
+  /* ─── MODAL ─── */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.8);
+    animation: fadeIn 0.3s;
+  }
+  
+  .modal.active { display: flex; align-items: center; justify-content: center; }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .modal-content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 520px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s;
+  }
+  
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .modal-header h2 {
+    font-size: 1.3rem;
+    color: var(--accent);
+    margin: 0;
+  }
+  
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modal-close:hover { color: var(--text); }
+  
+  .modal-field {
+    margin-bottom: 20px;
+  }
+  
+  .modal-field-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+  
+  .modal-field-value {
+    font-size: 0.95rem;
+    color: var(--text);
+    word-break: break-word;
+    padding: 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  
+  .modal-field-value.valor {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+  
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  
+  .modal-actions a {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  
+  .modal-actions a:hover { opacity: 0.85; }
+  
+  .modal-actions .edit { background: #1a2a3a; color: var(--blue); }
+  .modal-actions .delete { background: #2a1a1a; color: var(--red); }
+  .modal-actions .close-btn { background: var(--surface2); color: var(--text); }
+
   @media (max-width: 700px) {
     .col-km, .col-obs { display: none; }
     .resumo-grid { grid-template-columns: repeat(2, 1fr); }
     header { padding: 0 14px; }
     main { padding: 16px 12px; }
+    .modal-content { width: 95%; padding: 20px; }
   }
 </style>
 </head>
@@ -240,7 +369,7 @@
   <div class="header-actions">
     {% if logado %}
       <span class="status-badge status-on">🔓 Logado</span>
-      <a href="/configurar" class="btn btn-ghost">⚙️</a>
+      <a href="/perfil" class="btn btn-ghost">👤</a>
       <a href="/adicionar" class="btn btn-primary">+ Novo</a>
       <a href="/logout" class="btn btn-ghost">Sair</a>
     {% else %}
@@ -333,7 +462,7 @@
       <tbody>
         {% if registros %}
           {% for r in registros %}
-          <tr>
+          <tr onclick="abrirModal({{ r.id }}, '{{ r.data }}', '{{ r.tipo }}', '{{ r.descricao }}', {{ r.valor }}, {{ r.km or 'null' }}, '{{ (r.observacao or '')|replace(chr(10), '\\n')|replace("'", "\\'") }}')">
             <td>{{ r.data[8:10] }}/{{ r.data[5:7] }}/{{ r.data[0:4] }}</td>
             <td>
               {% if r.tipo == 'combustivel' %}
@@ -346,16 +475,15 @@
                 <span class="badge badge-outros">📋 Outros</span>
               {% endif %}
             </td>
-            <td>{{ r.descricao }}</td>
+            <td>{{ r.descricao[:40] }}{{ "..." if r.descricao|length > 40 else "" }}</td>
             <td class="valor-cell">R$ {{ "%.2f"|format(r.valor) }}</td>
             <td class="km-cell col-km">{{ r.km ~ " km" if r.km else "—" }}</td>
-            <td class="obs-cell col-obs" title="{{ r.observacao or '' }}">{{ r.observacao or "—" }}</td>
+            <td class="obs-cell col-obs" title="{{ r.observacao or '' }}">{{ (r.observacao[:20] + "...") if r.observacao and r.observacao|length > 20 else (r.observacao or "—") }}</td>
             {% if logado %}
             <td>
               <div class="acoes">
-                <a href="/editar/{{ r.id }}" class="btn-sm btn-edit">✏️</a>
-                <a href="/excluir/{{ r.id }}" class="btn-sm btn-del"
-                   onclick="return confirm('Excluir este registro?')">🗑️</a>
+                <a href="/editar/{{ r.id }}" class="btn-sm btn-edit" onclick="event.stopPropagation()">✏️</a>
+                <a href="/excluir/{{ r.id }}" class="btn-sm btn-del" onclick="event.stopPropagation(); return confirm('Excluir este registro?')">🗑️</a>
               </div>
             </td>
             {% endif %}
@@ -382,5 +510,101 @@
   </div>
 
 </main>
+
+<!-- Modal Expansível -->
+<div id="modal" class="modal" onclick="fecharModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2 id="modal-titulo">Detalhes</h2>
+      <button class="modal-close" onclick="fecharModal()">✕</button>
+    </div>
+
+    <div class="modal-field">
+      <span class="modal-field-label">Data</span>
+      <div class="modal-field-value" id="modal-data"></div>
+    </div>
+
+    <div class="modal-field">
+      <span class="modal-field-label">Tipo</span>
+      <div class="modal-field-value" id="modal-tipo"></div>
+    </div>
+
+    <div class="modal-field">
+      <span class="modal-field-label">Descrição</span>
+      <div class="modal-field-value" id="modal-descricao"></div>
+    </div>
+
+    <div class="modal-field">
+      <span class="modal-field-label">Valor</span>
+      <div class="modal-field-value valor" id="modal-valor"></div>
+    </div>
+
+    <div class="modal-field" id="km-field" style="display:none;">
+      <span class="modal-field-label">KM</span>
+      <div class="modal-field-value" id="modal-km"></div>
+    </div>
+
+    <div class="modal-field" id="obs-field" style="display:none;">
+      <span class="modal-field-label">Observação</span>
+      <div class="modal-field-value" id="modal-obs"></div>
+    </div>
+
+    <div class="modal-actions" id="modal-acoes"></div>
+  </div>
+</div>
+
+<script>
+const tipoLabels = {
+  'combustivel': '⛽ Combustível',
+  'manutencao': '🔧 Manutenção',
+  'peca': '⚙️ Peças',
+  'outros': '📋 Outros'
+};
+
+function abrirModal(id, data, tipo, descricao, valor, km, obs) {
+  const [ano, mes, dia] = data.split('-');
+  const dataFormatada = `${dia}/${mes}/${ano}`;
+  
+  document.getElementById('modal-titulo').textContent = descricao;
+  document.getElementById('modal-data').textContent = dataFormatada;
+  document.getElementById('modal-tipo').textContent = tipoLabels[tipo] || tipo;
+  document.getElementById('modal-descricao').textContent = descricao;
+  document.getElementById('modal-valor').textContent = `R$ ${valor.toFixed(2)}`;
+  
+  if (km) {
+    document.getElementById('km-field').style.display = 'block';
+    document.getElementById('modal-km').textContent = `${km} km`;
+  } else {
+    document.getElementById('km-field').style.display = 'none';
+  }
+  
+  if (obs) {
+    document.getElementById('obs-field').style.display = 'block';
+    document.getElementById('modal-obs').textContent = obs;
+  } else {
+    document.getElementById('obs-field').style.display = 'none';
+  }
+  
+  const acoesDiv = document.getElementById('modal-acoes');
+  acoesDiv.innerHTML = `
+    <a href="/editar/${id}" class="edit">✏️ Editar</a>
+    <a href="/excluir/${id}" class="delete" onclick="return confirm('Excluir este registro?')">🗑️ Excluir</a>
+    <button type="button" class="close-btn" onclick="fecharModal()">Fechar</button>
+  `;
+  
+  document.getElementById('modal').classList.add('active');
+}
+
+function fecharModal(event) {
+  if (event && event.target.id !== 'modal') return;
+  document.getElementById('modal').classList.remove('active');
+}
+
+// Fechar com ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') fecharModal();
+});
+</script>
+
 </body>
 </html>
