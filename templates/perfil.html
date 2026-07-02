@@ -187,6 +187,164 @@
             color: #ff6b6b;
             border-color: #6a3a3a;
         }
+        /* ===========================
+   RESPONSIVIDADE
+=========================== */
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+.container {
+    width: 100%;
+}
+
+button,
+input {
+    font-family: inherit;
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+
+    body{
+        padding:15px;
+    }
+
+    .container{
+        padding:25px;
+    }
+
+    h1{
+        font-size:28px;
+    }
+
+    .navbar{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:15px;
+    }
+
+    .navbar-links{
+        width:100%;
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px;
+    }
+
+    .navbar-links a{
+        margin-left:0;
+    }
+
+    button[type="submit"]{
+        width:100%;
+    }
+
+}
+/* Smartphones */
+
+@media (max-width:480px){
+
+    body{
+        padding:10px;
+    }
+
+    .container{
+    width:100%;
+    max-width:600px;
+    margin:auto;
+}
+
+    h1{
+        font-size:24px;
+        margin-bottom:20px;
+    }
+
+    label{
+        font-size:14px;
+    }
+
+    input{
+        padding:13px;
+        font-size:16px; /* evita zoom do Safari */
+    }
+
+    .info-box{
+        padding:12px;
+    }
+
+    .info-box p{
+        font-size:13px;
+        line-height:1.5;
+    }
+
+    .navbar{
+        padding:15px;
+    }
+
+    .navbar strong{
+        font-size:18px;
+    }
+
+    .navbar-links{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .navbar-links span{
+        font-size:14px;
+    }
+
+    .navbar-links a{
+
+        display:block;
+
+        width:100%;
+
+        text-align:center;
+
+        padding:12px;
+
+        background:var(--bg-secondary);
+
+        border:1px solid var(--border-color);
+
+        border-radius:6px;
+
+        text-decoration:none;
+    }
+
+    .navbar-links button{
+
+        width:100%;
+
+        padding:12px;
+
+        font-size:18px;
+
+    }
+
+    button[type="submit"]{
+
+        width:100%;
+
+        padding:14px;
+
+        font-size:16px;
+
+    }
+
+}
+.tema-btn{
+    background:var(--bg-secondary);
+    color:var(--text-primary);
+    border:1px solid var(--border-color);
+    border-radius:6px;
+    cursor:pointer;
+    padding:8px 12px;
+    font-size:18px;
+}
     </style>
 
     <script>
@@ -209,15 +367,7 @@
     <div class="navbar">
         <strong>🚗 Sistema do Carro</strong>
         <div class="navbar-links">
-            <button onclick="alternarTema()" style="
-                background: var(--bg-secondary);
-                color: var(--text-primary);
-                border: 1px solid var(--border-color);
-                padding: 8px 12px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 16px;
-            ">🌓</button>
+            <button onclick="alternarTema()" class="tema-btn">🌓</button>
             <span style="color: var(--text-secondary);">Olá, <strong>{{ nome_usuario }}</strong>!</span>
             <a href="{{ url_for('index') }}">Voltar para Registros</a>
             <a href="{{ url_for('logout') }}">Sair</a>
