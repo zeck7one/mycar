@@ -424,11 +424,11 @@
               {% endif %}
             </td>
             <td class="expandivel{% if r.descricao and r.descricao|length > 24 %} tem-mais{% endif %}"
-                onclick="abrirModal('Descrição', {{ (r.descricao or '')|tojson }})">{{ r.descricao }}</td>
+                data-titulo="Descrição" data-texto="{{ r.descricao or '' }}">{{ r.descricao }}</td>
             <td class="valor-cell">R$ {{ "%.2f"|format(r.valor) }}</td>
             <td class="km-cell col-km">{{ r.km ~ " km" if r.km else "—" }}</td>
             <td class="obs-cell expandivel col-obs{% if r.observacao and r.observacao|length > 20 %} tem-mais{% endif %}"
-                onclick="abrirModal('Observação', {{ (r.observacao or '—')|tojson }})">{{ r.observacao or "—" }}</td>
+                data-titulo="Observação" data-texto="{{ r.observacao or '' }}">{{ r.observacao or "—" }}</td>
             {% if logado %}
             <td>
               <div class="acoes">
@@ -487,6 +487,15 @@
   }
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') fecharModal();
+  });
+
+  // Liga o clique em todas as células expansíveis (descrição/observação)
+  document.querySelectorAll('.expandivel').forEach(function(celula) {
+    celula.addEventListener('click', function() {
+      var titulo = celula.getAttribute('data-titulo') || 'Detalhe';
+      var texto = celula.getAttribute('data-texto') || '';
+      abrirModal(titulo, texto);
+    });
   });
 </script>
 
