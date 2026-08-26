@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configurar — Meu Carro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Barlow+Condensed:wght@700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0f0f13;
+    color: #e8e8f0;
+    min-height: 100vh;
+  }
+  header {
+    background: #1a1a22;
+    border-bottom: 1px solid #2e2e3e;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: #f97316; }
+  .btn-ghost {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #2e2e3e;
+    background: #22222e;
+    color: #e8e8f0;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  main {
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #f97316;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: #1a1a22;
+    border: 1px solid #2e2e3e;
+    border-radius: 14px;
+    padding: 28px;
+  }
+  .grupo { margin-bottom: 20px; }
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #7a7a9a;
+    margin-bottom: 7px;
+  }
+  input[type=text] {
+    width: 100%;
+    padding: 12px 14px;
+    background: #22222e;
+    border: 1px solid #2e2e3e;
+    border-radius: 8px;
+    color: #e8e8f0;
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type=text]:focus { border-color: #f97316; }
+  .hint { font-size: 0.76rem; color: #5a5a7a; margin-top: 6px; }
+  .preview {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #0f0f13;
+    border: 1px dashed #2e2e3e;
+    border-radius: 8px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.2rem;
+    color: #f97316;
+    font-weight: 700;
+  }
+  .preview-label { font-size: 0.72rem; color: #5a5a7a; margin-bottom: 4px; font-family: 'Inter', sans-serif; font-weight: 400; }
+  button {
+    width: 100%;
+    padding: 13px;
+    background: #f97316;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: 4px;
+  }
+  button:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚗 MEU CARRO</div>
+  <a href="/" class="btn-ghost">← Voltar</a>
+</header>
+
+<main>
+  <h2>⚙️ Configurações</h2>
+  <div class="card">
+    <form method="POST">
+      <div class="grupo">
+        <label>Nome do carro</label>
+        <input
+          type="text"
+          name="nome_carro"
+          id="nome_input"
+          placeholder="Ex: Gol 2019, HB20 Prata, Uno Turbo..."
+          value="{{ nome_atual }}"
+          maxlength="40"
+          autofocus
+        >
+        <p class="hint">Aparece no topo do sistema no lugar de "MEU CARRO"</p>
+        <div style="margin-top:12px">
+          <div class="preview-label">Pré-visualização do cabeçalho:</div>
+          <div class="preview" id="preview_txt">🚗 {{ nome_atual if nome_atual else 'MEU CARRO' }}</div>
+        </div>
+      </div>
+      <button type="submit">💾 Salvar nome</button>
+    </form>
+  </div>
+</main>
+
+<script>
+  const input = document.getElementById('nome_input');
+  const preview = document.getElementById('preview_txt');
+  input.addEventListener('input', () => {
+    preview.textContent = '🚗 ' + (input.value.trim() || 'MEU CARRO');
+  });
+</script>
+
+</body>
+</html>

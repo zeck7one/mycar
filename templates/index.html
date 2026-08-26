@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚗 Meu Carro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --accent: #f97316;
+    --accent2: #fb923c;
+    --text: #e8e8f0;
+    --muted: #7a7a9a;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --yellow: #fbbf24;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: #3a1a1a; color: var(--red); border: 1px solid #5a2a2a; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+
+  .flash {
+    background: #1a2e1a;
+    border: 1px solid #2a5a2a;
+    color: var(--green);
+    padding: 12px 18px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+  }
+
+  .resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .card-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .card-valor {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .card-icon { font-size: 1.5rem; margin-bottom: 8px; }
+  .c-total { border-color: var(--accent); }
+  .c-total .card-valor { color: var(--accent); }
+  .c-combustivel .card-valor { color: var(--yellow); }
+  .c-manutencao .card-valor { color: var(--blue); }
+  .c-peca .card-valor { color: var(--purple); }
+  .c-outros .card-valor { color: var(--green); }
+  .c-km .card-valor { color: var(--muted); font-size: 1.3rem; }
+
+  .filtros {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filtros label { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .filtros select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .filtros-grupo { display: flex; align-items: center; gap: 8px; }
+
+  .tabela-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 560px; }
+  thead { background: var(--surface2); }
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  td {
+    padding: 13px 16px;
+    font-size: 0.88rem;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+  }
+  .badge-combustivel { background: #2a2500; color: var(--yellow); }
+  .badge-manutencao  { background: #001a3a; color: var(--blue); }
+  .badge-peca        { background: #1a0a3a; color: var(--purple); }
+  .badge-outros      { background: #0a2a1a; color: var(--green); }
+
+  .valor-cell {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+
+  .acoes { display: flex; gap: 6px; }
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  .btn-sm:hover { opacity: 0.75; }
+  .btn-edit { background: #1a2a3a; color: var(--blue); }
+  .btn-del  { background: #2a1a1a; color: var(--red); }
+
+  /* Campos expansíveis (descrição e observação) */
+  .expandivel {
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    position: relative;
+  }
+  .expandivel.tem-mais::after {
+    content: "🔍";
+    font-size: 0.7rem;
+    opacity: 0.5;
+    margin-left: 6px;
+  }
+  .expandivel:hover { color: var(--accent2); }
+
+  .obs-cell { color: var(--muted); font-size: 0.82rem; }
+  .km-cell { color: var(--muted); font-size: 0.85rem; }
+
+  .vazio {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .vazio-icon { font-size: 3rem; margin-bottom: 12px; }
+  .vazio p { font-size: 0.9rem; }
+
+  .status-badge {
+    font-size: 0.78rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .status-on  { background: #0a2a1a; color: var(--green); }
+  .status-off { background: #2a2a2a; color: var(--muted); }
+
+  /* Modal de leitura ampliada */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.ativo { display: flex; }
+  .modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 22px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .modal-titulo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .modal-fechar {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-fechar:hover { opacity: 0.8; }
+  .modal-conteudo {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  @media (max-width: 700px) {
+    .col-km, .col-obs { display: none; }
+    .resumo-grid { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 0 14px; }
+    main { padding: 16px 12px; }
+    .expandivel { max-width: 140px; }
+    table { min-width: 480px; }
+    th, td { padding: 11px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚗 {{ nome_carro if nome_carro else 'MEU CARRO' }}</div>
+  <div class="header-actions">
+    {% if logado %}
+      <span class="status-badge status-on">🔓 Logado</span>
+      <a href="/configurar" class="btn btn-ghost">⚙️</a>
+      <a href="/adicionar" class="btn btn-primary">+ Novo</a>
+      <a href="/logout" class="btn btn-ghost">Sair</a>
+    {% else %}
+      <span class="status-badge status-off">🔒 Bloqueado</span>
+      <a href="/login" class="btn btn-ghost">Entrar</a>
+    {% endif %}
+  </div>
+</header>
+
+<main>
+
+  {% with msgs = get_flashed_messages() %}
+    {% if msgs %}
+      {% for m in msgs %}
+        <div class="flash">✅ {{ m }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="resumo-grid">
+    <div class="card c-total">
+      <div class="card-icon">💰</div>
+      <div class="card-label">Total Gasto</div>
+      <div class="card-valor">R$ {{ "%.0f"|format(total_geral) }}</div>
+    </div>
+    <div class="card c-combustivel">
+      <div class="card-icon">⛽</div>
+      <div class="card-label">Combustível</div>
+      <div class="card-valor">R$ {{ "%.0f"|format(totais.get('combustivel', 0)) }}</div>
+    </div>
+    <div class="card c-manutencao">
+      <div class="card-icon">🔧</div>
+      <div class="card-label">Manutenção</div>
+      <div class="card-valor">R$ {{ "%.0f"|format(totais.get('manutencao', 0)) }}</div>
+    </div>
+    <div class="card c-peca">
+      <div class="card-icon">⚙️</div>
+      <div class="card-label">Peças</div>
+      <div class="card-valor">R$ {{ "%.0f"|format(totais.get('peca', 0)) }}</div>
+    </div>
+    <div class="card c-outros">
+      <div class="card-icon">📋</div>
+      <div class="card-label">Outros</div>
+      <div class="card-valor">R$ {{ "%.0f"|format(totais.get('outros', 0)) }}</div>
+    </div>
+    {% if ultimo_km %}
+    <div class="card c-km">
+      <div class="card-icon">🛣️</div>
+      <div class="card-label">Último KM</div>
+      <div class="card-valor">{{ "{:,}".format(ultimo_km).replace(",", ".") }} km</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <form method="GET" class="filtros">
+    <div class="filtros-grupo">
+      <label>Tipo:</label>
+      <select name="tipo" onchange="this.form.submit()">
+        <option value="">Todos</option>
+        <option value="combustivel" {% if tipo_filtro=='combustivel' %}selected{% endif %}>⛽ Combustível</option>
+        <option value="manutencao"  {% if tipo_filtro=='manutencao'  %}selected{% endif %}>🔧 Manutenção</option>
+        <option value="peca"        {% if tipo_filtro=='peca'        %}selected{% endif %}>⚙️ Peças</option>
+        <option value="outros"      {% if tipo_filtro=='outros'      %}selected{% endif %}>📋 Outros</option>
+      </select>
+    </div>
+    <div class="filtros-grupo">
+      <label>Ordem:</label>
+      <select name="ordem" onchange="this.form.submit()">
+        <option value="data_desc"  {% if ordem=='data_desc'  %}selected{% endif %}>Data (recente)</option>
+        <option value="data_asc"   {% if ordem=='data_asc'   %}selected{% endif %}>Data (antiga)</option>
+        <option value="valor_desc" {% if ordem=='valor_desc' %}selected{% endif %}>Maior valor</option>
+        <option value="valor_asc"  {% if ordem=='valor_asc'  %}selected{% endif %}>Menor valor</option>
+      </select>
+    </div>
+  </form>
+
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Tipo</th>
+          <th>Descrição</th>
+          <th>Valor</th>
+          <th class="col-km">KM</th>
+          <th class="col-obs">Obs.</th>
+          {% if logado %}<th>Ações</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% if registros %}
+          {% for r in registros %}
+          <tr>
+            <td>{{ r.data[8:10] }}/{{ r.data[5:7] }}/{{ r.data[0:4] }}</td>
+            <td>
+              {% if r.tipo == 'combustivel' %}
+                <span class="badge badge-combustivel">⛽ Combustível</span>
+              {% elif r.tipo == 'manutencao' %}
+                <span class="badge badge-manutencao">🔧 Manutenção</span>
+              {% elif r.tipo == 'peca' %}
+                <span class="badge badge-peca">⚙️ Peça</span>
+              {% else %}
+                <span class="badge badge-outros">📋 Outros</span>
+              {% endif %}
+            </td>
+            <td class="expandivel{% if r.descricao and r.descricao|length > 24 %} tem-mais{% endif %}"
+                data-titulo="Descrição" data-texto="{{ r.descricao or '' }}">{{ r.descricao }}</td>
+            <td class="valor-cell">R$ {{ "%.2f"|format(r.valor) }}</td>
+            <td class="km-cell col-km">{{ r.km ~ " km" if r.km else "—" }}</td>
+            <td class="obs-cell expandivel col-obs{% if r.observacao and r.observacao|length > 20 %} tem-mais{% endif %}"
+                data-titulo="Observação" data-texto="{{ r.observacao or '' }}">{{ r.observacao or "—" }}</td>
+            {% if logado %}
+            <td>
+              <div class="acoes">
+                <a href="/editar/{{ r.id }}" class="btn-sm btn-edit">✏️</a>
+                <a href="/excluir/{{ r.id }}" class="btn-sm btn-del"
+                   onclick="return confirm('Excluir este registro?')">🗑️</a>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="vazio">
+                <div class="vazio-icon">🚗</div>
+                <p>Nenhum registro encontrado.<br>
+                {% if logado %}
+                  <a href="/adicionar" style="color:var(--accent)">Adicione o primeiro!</a>
+                {% else %}
+                  Faça login para adicionar registros.
+                {% endif %}
+                </p>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<!-- Modal de leitura ampliada -->
+<div class="modal-overlay" id="modalOverlay" onclick="fecharModalFora(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-titulo" id="modalTitulo">Detalhe</span>
+      <button class="modal-fechar" onclick="fecharModal()">✕</button>
+    </div>
+    <div class="modal-conteudo" id="modalConteudo"></div>
+  </div>
+</div>
+
+<script>
+  function abrirModal(titulo, texto) {
+    document.getElementById('modalTitulo').textContent = titulo;
+    document.getElementById('modalConteudo').textContent = texto && texto.trim() ? texto : '—';
+    document.getElementById('modalOverlay').classList.add('ativo');
+  }
+  function fecharModal() {
+    document.getElementById('modalOverlay').classList.remove('ativo');
+  }
+  function fecharModalFora(event) {
+    if (event.target.id === 'modalOverlay') fecharModal();
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') fecharModal();
+  });
+
+  // Liga o clique em todas as células expansíveis (descrição/observação)
+  document.querySelectorAll('.expandivel').forEach(function(celula) {
+    celula.addEventListener('click', function() {
+      var titulo = celula.getAttribute('data-titulo') || 'Detalhe';
+      var texto = celula.getAttribute('data-texto') || '';
+      abrirModal(titulo, texto);
+    });
+  });
+</script>
+
+</body>
+</html>
