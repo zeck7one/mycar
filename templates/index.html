@@ -25,6 +25,7 @@
     --yellow: #fbbf24;
   }
 
+  html { -webkit-text-size-adjust: 100%; }
   body {
     font-family: 'Inter', sans-serif;
     background: var(--bg);
@@ -50,11 +51,13 @@
     font-weight: 700;
     letter-spacing: 1px;
     color: var(--accent);
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: block;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .header-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
   .btn {
     padding: 8px 16px;
     border-radius: 8px;
@@ -306,14 +309,97 @@
     word-break: break-word;
   }
 
+  /* ===== Responsivo ===== */
+  @media (max-width: 900px) {
+    main { padding: 22px 16px; }
+  }
+
   @media (max-width: 700px) {
-    .col-km, .col-obs { display: none; }
-    .resumo-grid { grid-template-columns: repeat(2, 1fr); }
-    header { padding: 0 14px; }
-    main { padding: 16px 12px; }
-    .expandivel { max-width: 140px; }
-    table { min-width: 480px; }
-    th, td { padding: 11px 10px; }
+    header { padding: 0 12px; height: 56px; gap: 10px; }
+    .logo { font-size: 1.15rem; letter-spacing: 0.5px; }
+    .header-actions { gap: 6px; }
+    .header-actions .status-badge { display: none; }
+    .btn { padding: 8px 12px; font-size: 0.82rem; }
+
+    main { padding: 14px 12px 28px; }
+
+    /* Resumo: Total em destaque, resto em 2 colunas */
+    .resumo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .c-total, .c-km { grid-column: 1 / -1; }
+    .card { padding: 14px; }
+    .card-icon { font-size: 1.2rem; margin-bottom: 4px; }
+    .card-label { font-size: 0.68rem; margin-bottom: 6px; }
+    .card-valor { font-size: 1.45rem; }
+    .c-km .card-valor { font-size: 1.25rem; }
+
+    /* Filtros empilhados */
+    .filtros { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .filtros-grupo { gap: 10px; }
+    .filtros label { min-width: 52px; }
+    .filtros select { flex: 1; min-width: 0; font-size: 16px; padding: 9px 12px; }
+
+    /* Tabela vira lista de cards */
+    .tabela-wrap { background: none; border: none; border-radius: 0; overflow: visible; }
+    table, tbody { display: block; width: 100%; min-width: 0; }
+    thead { display: none; }
+
+    tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "tipo  valor"
+        "desc  desc"
+        "data  km"
+        "obs   obs"
+        "acoes acoes";
+      gap: 8px 12px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    tbody tr:hover td { background: none; }
+    td { display: block; padding: 0; border: none; min-width: 0; }
+
+    .td-tipo  { grid-area: tipo; }
+    .td-valor { grid-area: valor; font-size: 1.25rem; text-align: right; }
+    .td-desc  { grid-area: desc; }
+    .td-data  { grid-area: data; color: var(--muted); font-size: 0.8rem; }
+    .td-km    { grid-area: km; text-align: right; display: block; }
+    .td-obs   { grid-area: obs; display: block; }
+    .td-acoes { grid-area: acoes; }
+    .sem-dado { display: none !important; }
+
+    /* textos longos: quebram linha em vez de estourar a tela */
+    .expandivel {
+      max-width: none;
+      white-space: normal;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+    .expandivel.tem-mais::after { display: none; }
+    .td-desc { font-size: 0.95rem; font-weight: 500; }
+    .td-obs::before { content: "Obs: "; color: var(--muted); opacity: 0.8; }
+
+    .acoes { gap: 8px; }
+    .acoes .btn-sm { flex: 1; text-align: center; padding: 10px; font-size: 0.9rem; }
+
+    tbody tr.linha-vazia { display: block; padding: 0; }
+    tbody tr.linha-vazia td { display: block; }
+    .vazio { padding: 40px 16px; }
+
+    .modal-overlay { padding: 14px; }
+    .modal-box { padding: 18px; max-height: 85vh; }
+  }
+
+  @media (max-width: 380px) {
+    .logo { font-size: 1.05rem; }
+    .btn { padding: 8px 10px; }
   }
 </style>
 </head>
@@ -418,8 +504,8 @@
         {% if registros %}
           {% for r in registros %}
           <tr>
-            <td>{{ r.data[8:10] }}/{{ r.data[5:7] }}/{{ r.data[0:4] }}</td>
-            <td>
+            <td class="td-data">{{ r.data[8:10] }}/{{ r.data[5:7] }}/{{ r.data[0:4] }}</td>
+            <td class="td-tipo">
               {% if r.tipo == 'combustivel' %}
                 <span class="badge badge-combustivel">⛽ Combustível</span>
               {% elif r.tipo == 'manutencao' %}
@@ -430,14 +516,14 @@
                 <span class="badge badge-outros">📋 Outros</span>
               {% endif %}
             </td>
-            <td class="expandivel{% if r.descricao and r.descricao|length > 24 %} tem-mais{% endif %}"
+            <td class="td-desc expandivel{% if r.descricao and r.descricao|length > 24 %} tem-mais{% endif %}"
                 data-titulo="Descrição" data-texto="{{ r.descricao or '' }}">{{ r.descricao }}</td>
-            <td class="valor-cell">R$ {{ "%.2f"|format(r.valor) }}</td>
-            <td class="km-cell col-km">{{ r.km ~ " km" if r.km else "—" }}</td>
-            <td class="obs-cell expandivel col-obs{% if r.observacao and r.observacao|length > 20 %} tem-mais{% endif %}"
+            <td class="td-valor valor-cell">R$ {{ "%.2f"|format(r.valor) }}</td>
+            <td class="km-cell col-km td-km{% if not r.km %} sem-dado{% endif %}">{{ r.km ~ " km" if r.km else "—" }}</td>
+            <td class="obs-cell expandivel col-obs td-obs{% if not r.observacao %} sem-dado{% endif %}{% if r.observacao and r.observacao|length > 20 %} tem-mais{% endif %}"
                 data-titulo="Observação" data-texto="{{ r.observacao or '' }}">{{ r.observacao or "—" }}</td>
             {% if logado %}
-            <td>
+            <td class="td-acoes">
               <div class="acoes">
                 <a href="/editar/{{ r.id }}" class="btn-sm btn-edit">✏️</a>
                 <a href="/excluir/{{ r.id }}" class="btn-sm btn-del"
@@ -448,7 +534,7 @@
           </tr>
           {% endfor %}
         {% else %}
-          <tr>
+          <tr class="linha-vazia">
             <td colspan="7">
               <div class="vazio">
                 <div class="vazio-icon">🚗</div>

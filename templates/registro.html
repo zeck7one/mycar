@@ -175,6 +175,15 @@
             color: #ff6b6b;
             border-color: #6a3a3a;
         }
+        /* ===== Responsivo ===== */
+        body { padding: 16px; }
+        .container { margin: auto; }
+        @media (max-width: 480px) {
+            .container { padding: 28px 20px; }
+            h1 { font-size: 1.5rem; }
+            input { font-size: 16px; } /* evita zoom automatico no iOS */
+            .navbar-links { position: static; margin-bottom: 12px; }
+        }
     </style>
 
     <script>

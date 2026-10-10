@@ -130,6 +130,26 @@
   .btn-submit:hover { opacity: 0.85; }
 
   .hint { font-size: 0.76rem; color: #5a5a7a; margin-top: 5px; }
+
+  /* ===== Responsivo ===== */
+  html { -webkit-text-size-adjust: 100%; }
+  .grid2 > .grupo { min-width: 0; }
+  input[type=date] { min-width: 0; min-height: 44px; }
+
+  @media (max-width: 600px) {
+    header { padding: 0 14px; height: 56px; }
+    .logo { font-size: 1.2rem; white-space: nowrap; }
+    main { margin: 20px auto; padding: 0 12px; }
+    h2 { font-size: 1.4rem; margin-bottom: 16px; }
+    .form-card { padding: 20px 16px; }
+    input, select, textarea { font-size: 16px; } /* evita zoom automatico no iOS */
+  }
+  @media (max-width: 480px) {
+    .grid2 { grid-template-columns: 1fr; gap: 0; }
+    .tipo-grid { grid-template-columns: repeat(2, 1fr); }
+    .tipo-btn { padding: 14px 6px; font-size: 0.85rem; }
+    .btn-submit { padding: 15px; }
+  }
 </style>
 </head>
 <body>
@@ -155,8 +175,6 @@
             Combustível
           </label>
           <label class="tipo-btn">
-
-            <input type="radio" name="tipo" value="manutencao" {% if tipo_atual=='manutencao' %}checked{% endif %} >
             <input type="radio" name="tipo" value="manutencao" {% if tipo_atual=='manutencao' %}checked{% endif %}>
             <span class="t-icon">🔧</span>
             Manutenção
