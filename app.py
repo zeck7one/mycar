@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from supabase import create_client, Client
 import os
 import sys
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
@@ -140,6 +140,28 @@ def admin_required(f):
         session['is_admin'] = True
         return f(*args, **kwargs)
     return decorated
+
+
+COM_MAX = 500  # tamanho máximo de um post da comunidade (igual ao CHECK da tabela)
+
+
+def agora_utc_iso():
+    return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
+def mencoes_nao_vistas(usuario_id):
+    """Quantas respostas/@ dirigidas ao usuário ele ainda não viu na comunidade."""
+    try:
+        u = supabase.table('usuarios').select('comunidade_visto_em').eq('id', usuario_id).execute().data
+        visto = u[0].get('comunidade_visto_em') if u else None
+        q = supabase.table('comunidade_posts').select('id', count='exact').eq('mencionado_id', usuario_id)
+        if visto:
+            q = q.gt('criada_em', visto)
+        r = q.limit(1).execute()
+        return r.count or 0
+    except Exception:
+        app.logger.exception('Falha ao contar menções (rodou o supabase_comunidade.sql?)')
+        return 0
 
 
 MSG_MAX = 1000  # tamanho máximo de uma mensagem (igual ao CHECK da tabela)
@@ -379,6 +401,7 @@ def index():
         mensagens_novas=mensagens_novas,
         total_nao_lidas=total_nao_lidas,
         eh_admin=eh_admin(),
+        mencoes_novas=mencoes_nao_vistas(usuario_id),
         registros=registros,
         totais=totais,
         total_geral=total_geral,
@@ -659,6 +682,141 @@ def admin_mensagens():
 
     return render_template('admin_mensagens.html', usuarios=usuarios,
                            admin_id=admin_id, historico=historico, max_chars=MSG_MAX)
+
+
+# ─── COMUNIDADE (feed público) ──────────────────────────────────
+# Regras:
+#  - todo usuário logado lê e posta publicamente;
+#  - usuário comum NÃO escolhe destinatário: a única forma de "marcar com @"
+#    é responder a um post existente, e quem é marcado é decidido AQUI no
+#    servidor (o autor daquele post). O cliente nunca manda um id de usuário;
+#  - mensagem direta continua exclusiva do admin (/admin/mensagens);
+#  - só o autor ou o admin apaga um post.
+
+def _exige_json():
+    """Só aceita JSON: um <form> de outro site não consegue enviar
+    Content-Type: application/json, o que bloqueia CSRF nessas rotas."""
+    dados = request.get_json(silent=True)
+    return dados if isinstance(dados, dict) else None
+
+
+@app.route('/comunidade/posts')
+@login_required
+@limiter.limit("30 per minute")  # o painel aberto consulta a cada ~15s
+def comunidade_posts():
+    uid = session['usuario_id']
+    try:
+        rows = supabase.table('comunidade_posts') \
+            .select('id, autor_id, texto, mencionado_id, criada_em') \
+            .order('id', desc=True).limit(50).execute().data or []
+    except Exception:
+        app.logger.exception('Falha ao carregar a comunidade (rodou o supabase_comunidade.sql?)')
+        return jsonify(erro='Comunidade indisponível no momento.'), 503
+    rows.reverse()  # cronológico: mais novo embaixo
+
+    ids = {r['autor_id'] for r in rows if r['autor_id'] is not None}
+    ids |= {r['mencionado_id'] for r in rows if r['mencionado_id'] is not None}
+    nomes = {}
+    if ids:
+        try:
+            us = supabase.table('usuarios').select('id, nome, is_admin').in_('id', list(ids)).execute().data or []
+            nomes = {str(u['id']): u for u in us}
+        except Exception:
+            app.logger.exception('Falha ao buscar nomes da comunidade')
+
+    sou_admin = eh_admin()
+    posts = []
+    for r in rows:
+        autor = nomes.get(str(r['autor_id']))
+        marcado = nomes.get(str(r['mencionado_id'])) if r['mencionado_id'] is not None else None
+        meu = r['autor_id'] is not None and str(r['autor_id']) == str(uid)
+        posts.append({
+            'id': r['id'],
+            'autor': autor['nome'] if autor else 'usuário removido',
+            'autor_admin': bool(autor and autor.get('is_admin')),
+            'texto': r['texto'],
+            'hora': datahora(r['criada_em']),
+            'marcado': marcado['nome'] if marcado else None,
+            'mencao_a_mim': r['mencionado_id'] is not None and str(r['mencionado_id']) == str(uid),
+            'meu': meu,
+            'pode_apagar': meu or bool(sou_admin),
+        })
+
+    # Painel aberto = usuário está vendo as menções dele: zera o badge.
+    if request.args.get('aberto') == '1' and any(p['mencao_a_mim'] for p in posts):
+        if mencoes_nao_vistas(uid) > 0:
+            try:
+                supabase.table('usuarios').update({'comunidade_visto_em': agora_utc_iso()}).eq('id', uid).execute()
+            except Exception:
+                app.logger.exception('Falha ao atualizar comunidade_visto_em')
+
+    return jsonify(posts=posts)
+
+
+@app.route('/comunidade/postar', methods=['POST'])
+@login_required
+@limiter.limit("8 per minute;100 per day", key_func=lambda: str(session.get('usuario_id')))
+def comunidade_postar():
+    uid = session['usuario_id']
+    dados = _exige_json()
+    if dados is None:
+        return jsonify(erro='Requisição inválida.'), 400
+
+    texto = str(dados.get('texto') or '').strip()
+    if not texto:
+        return jsonify(erro='Escreva algo antes de enviar.'), 400
+    if len(texto) > COM_MAX:
+        return jsonify(erro=f'Máximo de {COM_MAX} caracteres.'), 400
+
+    # Única forma de marcar alguém: responder a um post. O destinatário do @ é
+    # o autor desse post, descoberto no banco (campos extras do JSON são ignorados).
+    resposta_a, mencionado = None, None
+    if dados.get('resposta_a') not in (None, ''):
+        try:
+            resposta_a = int(dados['resposta_a'])
+        except (TypeError, ValueError):
+            return jsonify(erro='Resposta inválida.'), 400
+        try:
+            pai = supabase.table('comunidade_posts').select('id, autor_id').eq('id', resposta_a).execute().data
+        except Exception:
+            app.logger.exception('Falha ao buscar post original')
+            return jsonify(erro='Erro ao enviar.'), 500
+        if not pai:
+            return jsonify(erro='A mensagem original não existe mais.'), 400
+        if pai[0]['autor_id'] is not None and str(pai[0]['autor_id']) != str(uid):
+            mencionado = pai[0]['autor_id']
+
+    try:
+        supabase.table('comunidade_posts').insert({
+            'autor_id': uid, 'texto': texto,
+            'resposta_a_id': resposta_a, 'mencionado_id': mencionado,
+        }).execute()
+    except Exception:
+        app.logger.exception('Falha ao postar na comunidade')
+        return jsonify(erro='Erro ao enviar. Tente de novo.'), 500
+    return jsonify(ok=True)
+
+
+@app.route('/comunidade/apagar/<int:post_id>', methods=['POST'])
+@login_required
+def comunidade_apagar(post_id):
+    uid = session['usuario_id']
+    if _exige_json() is None:
+        return jsonify(erro='Requisição inválida.'), 400
+    try:
+        r = supabase.table('comunidade_posts').select('id, autor_id').eq('id', post_id).execute().data
+    except Exception:
+        app.logger.exception('Falha ao buscar post pra apagar')
+        return jsonify(erro='Erro ao apagar.'), 500
+    if not r:
+        return jsonify(ok=True)  # já não existe
+    dono = r[0]['autor_id'] is not None and str(r[0]['autor_id']) == str(uid)
+    if not dono and not admin_no_banco(uid):  # admin sempre conferido no banco
+        return jsonify(erro='Você só pode apagar as suas mensagens.'), 403
+    supabase.table('comunidade_posts').delete().eq('id', post_id).execute()
+    if not dono:
+        app.logger.info(f'Admin {uid} apagou post {post_id} da comunidade')
+    return jsonify(ok=True)
 
 
 # ─── INICIAR ────────────────────────────────────────────────────

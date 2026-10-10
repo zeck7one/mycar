@@ -1,0 +1,311 @@
+{# Gaveta lateral da comunidade. Incluída pelo index.html (usa as variáveis CSS dele). #}
+<button type="button" id="comToggle" class="com-toggle" aria-label="Abrir comunidade" aria-controls="comDrawer" aria-expanded="false">
+  <span class="com-toggle-icone">💬</span><span class="com-toggle-txt">Comunidade</span>
+  {% if mencoes_novas %}<span class="com-badge" id="comBadge">{{ mencoes_novas if mencoes_novas < 100 else '99+' }}</span>{% endif %}
+</button>
+
+<div class="com-backdrop" id="comBackdrop"></div>
+
+<aside class="com-drawer" id="comDrawer" aria-label="Comunidade" aria-hidden="true">
+  <div class="com-head">
+    <div>
+      <div class="com-titulo">💬 Comunidade</div>
+      <div class="com-sub">Mensagens públicas — todos os usuários veem.</div>
+    </div>
+    <button type="button" class="com-fechar" id="comFechar" aria-label="Fechar">✕</button>
+  </div>
+
+  <div class="com-lista" id="comLista" aria-live="polite"></div>
+
+  <div class="com-composer">
+    <div class="com-resp" id="comResp" hidden>
+      <span>↪ Respondendo <strong id="comRespNome"></strong></span>
+      <button type="button" id="comRespCancelar" aria-label="Cancelar resposta">✕</button>
+    </div>
+    <div class="com-erro" id="comErro" hidden></div>
+    <textarea id="comTexto" maxlength="500" rows="2" placeholder="Escreva pra comunidade..."></textarea>
+    <div class="com-linha">
+      <span class="com-contador" id="comContador">0 / 500</span>
+      <button type="button" class="com-enviar" id="comEnviar">Enviar</button>
+    </div>
+    <div class="com-dica">Pra falar com alguém, toque em <b>Responder</b> na mensagem dele(a) — ele(a) é marcado(a) com @.</div>
+  </div>
+</aside>
+
+{% raw %}
+<style>
+  body { transition: padding-right .25s ease; }
+
+  .com-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 200;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #fff; border: none; cursor: pointer;
+    padding: 12px 18px; border-radius: 999px; font-weight: 700; font-size: 0.9rem;
+    font-family: inherit; box-shadow: 0 6px 20px rgba(0,0,0,.45);
+  }
+  .com-toggle:hover { opacity: .9; }
+  .com-toggle-icone { font-size: 1.15rem; line-height: 1; }
+  .com-badge {
+    position: absolute; top: -6px; right: -4px; background: var(--red); color: #fff;
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+    font-size: .68rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg);
+  }
+  body.com-aberta .com-toggle { display: none; }
+
+  .com-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 250;
+    opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s;
+  }
+  .com-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 360px; max-width: 100%;
+    height: 100vh; height: 100dvh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    z-index: 300; display: flex; flex-direction: column;
+    transform: translateX(100%); visibility: hidden;
+    transition: transform .25s ease, visibility .25s;
+  }
+  .com-drawer.aberto { transform: none; visibility: visible; }
+
+  .com-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .com-titulo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+  .com-sub { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .com-fechar {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 1rem; flex-shrink: 0;
+  }
+
+  .com-lista { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .com-vazio { text-align: center; color: var(--muted); font-size: .85rem; padding: 40px 12px; }
+
+  .com-post { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+  .com-post.com-meu { border-color: #3a3a52; background: #262636; }
+  .com-post.com-mencao { border-color: var(--accent); background: #2a1a0a; }
+  .com-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .com-autor { font-weight: 700; font-size: .85rem; overflow-wrap: anywhere; }
+  .com-admin { background: var(--accent); color: #fff; font-size: .6rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; letter-spacing: .4px; }
+  .com-hora { font-size: .68rem; color: var(--muted); white-space: nowrap; }
+  .com-tag { font-size: .76rem; color: var(--accent2); font-weight: 600; margin-bottom: 4px; overflow-wrap: anywhere; }
+  .com-voce { background: var(--accent); color: #fff; font-size: .6rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; font-weight: 700; }
+  .com-texto { font-size: .9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .com-acoes { display: flex; gap: 14px; margin-top: 6px; }
+  .com-acoes button { background: none; border: none; color: var(--muted); font-size: .74rem; font-weight: 600; cursor: pointer; padding: 4px 0; font-family: inherit; }
+  .com-acoes button:hover { color: var(--accent2); }
+  .com-acoes .com-apagar:hover { color: var(--red); }
+
+  .com-composer { border-top: 1px solid var(--border); padding: 10px 12px 12px; flex-shrink: 0; background: var(--surface); }
+  .com-resp {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    background: #2a1a0a; border: 1px solid var(--accent); border-radius: 8px;
+    padding: 6px 10px; margin-bottom: 8px; font-size: .78rem; color: var(--accent2);
+  }
+  .com-resp[hidden], .com-erro[hidden] { display: none; }
+  .com-resp button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .9rem; }
+  .com-erro { background: #2e1a1a; border: 1px solid #5a2a2a; color: var(--red); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; font-size: .78rem; }
+  .com-composer textarea {
+    width: 100%; resize: none; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 16px; font-family: inherit; outline: none;
+  }
+  .com-composer textarea:focus { border-color: var(--accent); }
+  .com-linha { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .com-contador { font-size: .72rem; color: #5a5a7a; }
+  .com-contador.limite { color: var(--red); }
+  .com-enviar { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-weight: 700; font-size: .85rem; cursor: pointer; font-family: inherit; }
+  .com-enviar:disabled { opacity: .5; cursor: not-allowed; }
+  .com-dica { font-size: .68rem; color: #5a5a7a; margin-top: 8px; line-height: 1.4; }
+
+  /* Telas largas: empurra a página em vez de cobrir */
+  @media (min-width: 1000px) {
+    body.com-aberta { padding-right: 360px; }
+  }
+  /* Telas menores: cobre com fundo escuro; no celular ocupa a tela toda */
+  @media (max-width: 999px) {
+    body.com-aberta .com-backdrop { opacity: 1; visibility: visible; }
+  }
+  @media (max-width: 700px) {
+    main { padding-bottom: 88px; } /* não deixa o botão flutuante cobrir o fim da lista */
+    .com-drawer { width: 100%; border-left: none; }
+    .com-toggle { right: 12px; bottom: 12px; padding: 14px; }
+    .com-toggle-txt { display: none; }
+    .com-toggle-icone { font-size: 1.4rem; }
+  }
+</style>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var drawer = $('comDrawer'), toggle = $('comToggle'), backdrop = $('comBackdrop'),
+      lista = $('comLista'), texto = $('comTexto'), enviar = $('comEnviar'),
+      contador = $('comContador'), erroBox = $('comErro'),
+      respBox = $('comResp'), respNome = $('comRespNome');
+  var timer = null, ultimoSnap = '', respondendo = null, ocupado = false;
+  var teclado = window.matchMedia('(pointer: fine)').matches; // desktop: Enter envia
+
+  function mostrarErro(msg) {
+    erroBox.textContent = msg || '';
+    erroBox.hidden = !msg;
+  }
+
+  function abrir() {
+    drawer.classList.add('aberto');
+    drawer.setAttribute('aria-hidden', 'false');
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('com-aberta');
+    var b = $('comBadge'); if (b) b.remove(); // o servidor zera ao carregar o feed
+    carregar(true);
+    clearInterval(timer);
+    timer = setInterval(function () { if (!document.hidden) carregar(false); }, 15000);
+    if (teclado) texto.focus();
+  }
+  function fechar() {
+    drawer.classList.remove('aberto');
+    drawer.setAttribute('aria-hidden', 'true');
+    toggle.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('com-aberta');
+    clearInterval(timer);
+    toggle.focus();
+  }
+
+  async function carregar(rolarFim) {
+    try {
+      var r = await fetch('/comunidade/posts?aberto=1', { headers: { 'Accept': 'application/json' } });
+      var tipo = r.headers.get('content-type') || '';
+      if (r.status === 429) { return; }
+      if (!tipo.includes('application/json')) { // sessão expirada → caiu na tela de login
+        lista.replaceChildren(aviso('Sua sessão expirou. Recarregue a página e entre de novo.'));
+        return;
+      }
+      var j = await r.json();
+      if (!r.ok) { lista.replaceChildren(aviso(j.erro || 'Comunidade indisponível.')); ultimoSnap = ''; return; }
+      var snap = JSON.stringify(j.posts);
+      if (snap === ultimoSnap && !rolarFim) return; // nada mudou
+      ultimoSnap = snap;
+      desenhar(j.posts, rolarFim);
+    } catch (e) { /* sem rede: tenta de novo no próximo ciclo */ }
+  }
+
+  function aviso(msg) {
+    var d = document.createElement('div'); d.className = 'com-vazio'; d.textContent = msg; return d;
+  }
+
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt !== undefined) e.textContent = txt; // textContent: nunca interpreta HTML
+    return e;
+  }
+
+  function desenhar(posts, rolarFim) {
+    var noFim = lista.scrollHeight - lista.scrollTop - lista.clientHeight < 80;
+    lista.replaceChildren();
+    if (!posts.length) {
+      lista.appendChild(aviso('Ninguém falou nada ainda. Seja o primeiro! 👋'));
+      return;
+    }
+    posts.forEach(function (p) {
+      var card = el('div', 'com-post' + (p.meu ? ' com-meu' : '') + (p.mencao_a_mim ? ' com-mencao' : ''));
+      var topo = el('div', 'com-topo');
+      var autor = el('span', 'com-autor', p.autor);
+      if (p.autor_admin) autor.appendChild(el('span', 'com-admin', '🛡️ ADMIN'));
+      topo.appendChild(autor);
+      topo.appendChild(el('span', 'com-hora', p.hora));
+      card.appendChild(topo);
+
+      if (p.marcado) {
+        var tag = el('div', 'com-tag', '↪ @' + p.marcado);
+        if (p.mencao_a_mim) tag.appendChild(el('span', 'com-voce', 'VOCÊ'));
+        card.appendChild(tag);
+      }
+      card.appendChild(el('div', 'com-texto', p.texto));
+
+      var acoes = el('div', 'com-acoes');
+      if (!p.meu) {
+        var bResp = el('button', '', '↪ Responder');
+        bResp.type = 'button';
+        bResp.addEventListener('click', function () { responder(p); });
+        acoes.appendChild(bResp);
+      }
+      if (p.pode_apagar) {
+        var bDel = el('button', 'com-apagar', '🗑️ Apagar');
+        bDel.type = 'button';
+        bDel.addEventListener('click', function () { apagar(p.id); });
+        acoes.appendChild(bDel);
+      }
+      if (acoes.children.length) card.appendChild(acoes);
+      lista.appendChild(card);
+    });
+    if (rolarFim || noFim) lista.scrollTop = lista.scrollHeight;
+  }
+
+  function responder(p) {
+    respondendo = { id: p.id, nome: p.autor };
+    respNome.textContent = '@' + p.autor;
+    respBox.hidden = false;
+    texto.focus();
+  }
+  function cancelarResposta() { respondendo = null; respBox.hidden = true; }
+
+  async function enviarPost() {
+    var t = texto.value.trim();
+    if (!t || ocupado) return;
+    ocupado = true; enviar.disabled = true; mostrarErro('');
+    try {
+      var r = await fetch('/comunidade/postar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ texto: t, resposta_a: respondendo ? respondendo.id : null })
+      });
+      if (r.status === 429) { mostrarErro('Calma! Muitas mensagens em pouco tempo. Tente de novo em instantes.'); return; }
+      var tipo = r.headers.get('content-type') || '';
+      var j = tipo.includes('application/json') ? await r.json() : {};
+      if (!r.ok) { mostrarErro(j.erro || 'Não foi possível enviar.'); return; }
+      texto.value = ''; atualizarContador(); cancelarResposta();
+      await carregar(true);
+    } catch (e) {
+      mostrarErro('Sem conexão. Tente de novo.');
+    } finally {
+      ocupado = false; enviar.disabled = false;
+    }
+  }
+
+  async function apagar(id) {
+    if (!confirm('Apagar esta mensagem?')) return;
+    try {
+      var r = await fetch('/comunidade/apagar/' + id, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+      });
+      if (!r.ok) {
+        var tipo = r.headers.get('content-type') || '';
+        var j = tipo.includes('application/json') ? await r.json() : {};
+        mostrarErro(j.erro || 'Não foi possível apagar.');
+        return;
+      }
+      if (respondendo && respondendo.id === id) cancelarResposta();
+      await carregar(false);
+    } catch (e) { mostrarErro('Sem conexão.'); }
+  }
+
+  function atualizarContador() {
+    var n = texto.value.length;
+    contador.textContent = n + ' / 500';
+    contador.classList.toggle('limite', n >= 500);
+  }
+
+  toggle.addEventListener('click', abrir);
+  $('comFechar').addEventListener('click', fechar);
+  backdrop.addEventListener('click', fechar);
+  $('comRespCancelar').addEventListener('click', cancelarResposta);
+  enviar.addEventListener('click', enviarPost);
+  texto.addEventListener('input', atualizarContador);
+  texto.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && teclado) { e.preventDefault(); enviarPost(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && drawer.classList.contains('aberto')) fechar();
+  });
+})();
+</script>
+{% endraw %}
