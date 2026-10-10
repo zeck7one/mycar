@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mensagens — Meu Carro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Barlow+Condensed:wght@700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-family: 'Inter', sans-serif; background: #0f0f13; color: #e8e8f0; min-height: 100vh; }
+  header {
+    background: #1a1a22; border-bottom: 1px solid #2e2e3e;
+    padding: 0 24px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: #f97316; white-space: nowrap; }
+  .btn-ghost {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #2e2e3e; background: #22222e;
+    color: #e8e8f0; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap;
+  }
+  main { max-width: 640px; margin: 32px auto; padding: 0 20px; }
+  h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; color: #f97316; margin-bottom: 20px; }
+
+  .msg { background: #1a1a22; border: 1px solid #2e2e3e; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .msg.nova { border-color: #f97316; }
+  .msg-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem; color: #7a7a9a; margin-bottom: 8px; }
+  .tag-nova { background: #f97316; color: #fff; font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.5px; }
+  .msg-texto { font-size: 0.95rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vazio { text-align: center; padding: 60px 20px; color: #7a7a9a; font-size: 0.9rem; }
+  .vazio-icon { font-size: 3rem; margin-bottom: 12px; }
+
+  @media (max-width: 600px) {
+    header { padding: 0 14px; height: 56px; }
+    .logo { font-size: 1.2rem; }
+    main { margin: 20px auto; padding: 0 12px; }
+    h2 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚗 MEU CARRO</div>
+  <a href="{{ url_for('index') }}" class="btn-ghost">← Voltar</a>
+</header>
+
+<main>
+  <h2>📩 Mensagens</h2>
+
+  {% if msgs %}
+    {% for m in msgs %}
+      <div class="msg{% if not m.lida %} nova{% endif %}">
+        <div class="msg-topo">
+          <span>📢 Administrador{% if not m.lida %} <span class="tag-nova">NOVA</span>{% endif %}</span>
+          <span>{{ m.criada_em|datahora }}</span>
+        </div>
+        <div class="msg-texto">{{ m.texto }}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="vazio">
+      <div class="vazio-icon">📭</div>
+      Nenhuma mensagem por enquanto.
+    </div>
+  {% endif %}
+</main>
+
+</body>
+</html>

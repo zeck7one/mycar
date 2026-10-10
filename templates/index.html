@@ -309,6 +309,27 @@
     word-break: break-word;
   }
 
+  /* Mensagens do admin */
+  .btn-icon { position: relative; }
+  .badge-n {
+    position: absolute; top: -6px; right: -6px;
+    background: var(--red); color: #fff; font-size: 0.65rem; font-weight: 700;
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .aviso-msg {
+    background: #2a1a0a; border: 1px solid var(--accent); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 20px;
+  }
+  .aviso-titulo { font-weight: 700; color: var(--accent2); font-size: 0.9rem; margin-bottom: 10px; }
+  .aviso-item {
+    font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+    padding: 10px 0; border-top: 1px solid rgba(249,115,22,0.25);
+  }
+  .aviso-mais { font-size: 0.78rem; color: var(--muted); padding-top: 8px; border-top: 1px solid rgba(249,115,22,0.25); }
+  .aviso-acoes { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .aviso-acoes form { margin: 0; }
+
   /* ===== Responsivo ===== */
   @media (max-width: 900px) {
     main { padding: 22px 16px; }
@@ -320,6 +341,11 @@
     .header-actions { gap: 6px; }
     .header-actions .status-badge { display: none; }
     .btn { padding: 8px 12px; font-size: 0.82rem; }
+    .btn-icon { padding: 8px 10px; }
+    .aviso-msg { padding: 14px; margin-bottom: 14px; }
+    .aviso-acoes .btn { flex: 1; justify-content: center; }
+    .aviso-acoes form { flex: 1; display: flex; }
+    .aviso-acoes form .btn { width: 100%; }
 
     main { padding: 14px 12px 28px; }
 
@@ -410,6 +436,8 @@
   <div class="header-actions">
     {% if logado %}
       <span class="status-badge status-on">🔓 Logado</span>
+      <a href="{{ url_for('mensagens') }}" class="btn btn-ghost btn-icon" title="Mensagens">📩{% if total_nao_lidas %}<span class="badge-n">{{ total_nao_lidas if total_nao_lidas < 100 else '99+' }}</span>{% endif %}</a>
+      {% if eh_admin %}<a href="{{ url_for('admin_mensagens') }}" class="btn btn-ghost btn-icon" title="Painel admin">🛡️</a>{% endif %}
       <a href="/configurar" class="btn btn-ghost">⚙️</a>
       <a href="/adicionar" class="btn btn-primary">+ Novo</a>
       <a href="/logout" class="btn btn-ghost">Sair</a>
@@ -429,6 +457,24 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
+
+  {% if mensagens_novas %}
+  <div class="aviso-msg">
+    <div class="aviso-titulo">📩 {{ total_nao_lidas }} mensage{{ 'm' if total_nao_lidas == 1 else 'ns' }} nova{{ '' if total_nao_lidas == 1 else 's' }} do administrador</div>
+    {% for m in mensagens_novas %}
+      <div class="aviso-item">{{ m.texto }}</div>
+    {% endfor %}
+    {% if total_nao_lidas > mensagens_novas|length %}
+      <div class="aviso-mais">+ {{ total_nao_lidas - mensagens_novas|length }} mais antiga(s)</div>
+    {% endif %}
+    <div class="aviso-acoes">
+      <form method="POST" action="{{ url_for('mensagens_marcar_lidas') }}">
+        <button type="submit" class="btn btn-primary">✓ Marcar como lida{{ '' if total_nao_lidas == 1 else 's' }}</button>
+      </form>
+      <a href="{{ url_for('mensagens') }}" class="btn btn-ghost">Ver todas</a>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="resumo-grid">
     <div class="card c-total">

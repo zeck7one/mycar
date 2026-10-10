@@ -3,7 +3,8 @@ from supabase import create_client, Client
 import os
 import sys
 import logging
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
@@ -103,6 +104,55 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
+
+
+def admin_no_banco(usuario_id):
+    """Consulta o banco pra saber se o usuário é admin (fonte da verdade).
+    Se a coluna is_admin ainda não existir, devolve False em vez de quebrar."""
+    try:
+        r = supabase.table('usuarios').select('is_admin').eq('id', usuario_id).execute()
+        return bool(r.data and r.data[0].get('is_admin'))
+    except Exception:
+        app.logger.exception('Falha ao checar is_admin (rodou o supabase_mensagens.sql?)')
+        return False
+
+
+def eh_admin():
+    """Só pra exibir/esconder botões. NÃO use pra proteger rotas (use @admin_required)."""
+    if 'is_admin' not in session:  # sessão antiga, de antes do recurso existir
+        session['is_admin'] = admin_no_banco(session.get('usuario_id'))
+    return session['is_admin']
+
+
+def admin_required(f):
+    """Exige login E is_admin=true no banco, checado a cada requisição.
+    Assim, se você tirar o admin de alguém, o acesso cai na hora."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('usuario_id'):
+            flash('Você precisa estar logado!', 'erro')
+            return redirect(url_for('login'))
+        if not admin_no_banco(session['usuario_id']):
+            session['is_admin'] = False
+            app.logger.warning(f"Acesso admin negado: usuario_id={session['usuario_id']}")
+            flash('Acesso restrito a administradores.', 'erro')
+            return redirect(url_for('index'))
+        session['is_admin'] = True
+        return f(*args, **kwargs)
+    return decorated
+
+
+MSG_MAX = 1000  # tamanho máximo de uma mensagem (igual ao CHECK da tabela)
+
+
+@app.template_filter('datahora')
+def datahora(valor):
+    """'2026-10-10T14:23:45+00:00' (UTC) -> '10/10/2026 11:23' (Brasília, UTC-3)."""
+    try:
+        dt = datetime.strptime(str(valor)[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S')
+        return (dt - timedelta(hours=3)).strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        return str(valor or '')
 
 
 def senha_e_forte(senha):
@@ -242,6 +292,7 @@ def login():
             session['usuario_id'] = usuario['id']
             session['nome'] = usuario['nome']
             session['email'] = usuario['email']
+            session['is_admin'] = bool(usuario.get('is_admin'))
             app.logger.info(f'Login bem-sucedido: {email}')
             flash(f'Bem-vindo, {usuario["nome"]}!', 'sucesso')
             return redirect(url_for('index'))
@@ -309,7 +360,25 @@ def index():
     usuario = supabase.table('usuarios').select('nome_carro').eq('id', usuario_id).execute().data
     nome_carro = usuario[0]['nome_carro'] if usuario else ''
 
+    # Mensagens não lidas do administrador (se a tabela ainda não existir, ignora)
+    mensagens_novas, total_nao_lidas = [], 0
+    try:
+        r = supabase.table('mensagens') \
+            .select('id, texto, criada_em', count='exact') \
+            .eq('destinatario_id', usuario_id) \
+            .eq('lida', False) \
+            .order('criada_em', desc=True) \
+            .limit(3) \
+            .execute()
+        mensagens_novas = r.data or []
+        total_nao_lidas = r.count if r.count is not None else len(mensagens_novas)
+    except Exception:
+        app.logger.exception('Falha ao buscar mensagens não lidas')
+
     return render_template('index.html',
+        mensagens_novas=mensagens_novas,
+        total_nao_lidas=total_nao_lidas,
+        eh_admin=eh_admin(),
         registros=registros,
         totais=totais,
         total_geral=total_geral,
@@ -478,6 +547,118 @@ def perfil():
             return redirect(url_for('perfil'))
 
     return render_template('perfil.html', usuario=usuario)
+
+
+# ─── MENSAGENS (usuário) ────────────────────────────────────────
+
+@app.route('/mensagens')
+@login_required
+def mensagens():
+    usuario_id = session['usuario_id']
+    try:
+        msgs = supabase.table('mensagens') \
+            .select('id, texto, lida, criada_em') \
+            .eq('destinatario_id', usuario_id) \
+            .order('criada_em', desc=True) \
+            .limit(50) \
+            .execute().data or []
+    except Exception:
+        app.logger.exception('Falha ao listar mensagens')
+        msgs = []
+
+    # Abrir a caixa de entrada marca tudo como lido (a lista já foi buscada,
+    # então a tela ainda destaca quais eram novas).
+    ids_novas = [m['id'] for m in msgs if not m['lida']]
+    if ids_novas:
+        supabase.table('mensagens').update({'lida': True}) \
+            .in_('id', ids_novas).eq('destinatario_id', usuario_id).execute()
+
+    return render_template('mensagens.html', msgs=msgs)
+
+
+@app.route('/mensagens/lidas', methods=['POST'])
+@login_required
+def mensagens_marcar_lidas():
+    usuario_id = session['usuario_id']
+    try:
+        supabase.table('mensagens').update({'lida': True}) \
+            .eq('destinatario_id', usuario_id).eq('lida', False).execute()
+    except Exception:
+        app.logger.exception('Falha ao marcar mensagens como lidas')
+    return redirect(url_for('index'))
+
+
+# ─── ADMIN: ENVIAR MENSAGENS ────────────────────────────────────
+
+@app.route('/admin/mensagens', methods=['GET', 'POST'])
+@admin_required
+def admin_mensagens():
+    admin_id = session['usuario_id']
+    usuarios = supabase.table('usuarios').select('id, nome, email').order('nome').execute().data or []
+    por_id = {str(u['id']): u for u in usuarios}
+
+    if request.method == 'POST':
+        destino = request.form.get('destinatario', '').strip()
+        texto = request.form.get('texto', '').strip()
+
+        if not texto:
+            flash('Escreva a mensagem antes de enviar.', 'erro')
+            return redirect(url_for('admin_mensagens'))
+        if len(texto) > MSG_MAX:
+            flash(f'Mensagem muito longa (máximo {MSG_MAX} caracteres).', 'erro')
+            return redirect(url_for('admin_mensagens'))
+
+        if destino == 'todos':
+            alvos = [u for u in usuarios if str(u['id']) != str(admin_id)]
+        elif destino in por_id:
+            alvos = [por_id[destino]]
+        else:
+            flash('Destinatário inválido.', 'erro')
+            return redirect(url_for('admin_mensagens'))
+
+        if not alvos:
+            flash('Não há outros usuários cadastrados pra receber.', 'erro')
+            return redirect(url_for('admin_mensagens'))
+
+        lote = str(uuid.uuid4())  # agrupa os envios "pra todos" no histórico
+        linhas = [{'remetente_id': admin_id, 'destinatario_id': u['id'],
+                   'texto': texto, 'lote': lote} for u in alvos]
+        try:
+            supabase.table('mensagens').insert(linhas).execute()
+        except Exception:
+            app.logger.exception('Falha ao enviar mensagem')
+            flash('Erro ao enviar. Rodou o supabase_mensagens.sql? (veja os Logs)', 'erro')
+            return redirect(url_for('admin_mensagens'))
+
+        app.logger.info(f'Admin {admin_id} enviou mensagem (lote {lote}) para {len(alvos)} usuário(s)')
+        flash(f'Mensagem enviada para {len(alvos)} usuário(s)!', 'sucesso')
+        return redirect(url_for('admin_mensagens'))
+
+    # GET: histórico recente, agrupando envios em massa pelo lote
+    try:
+        enviadas = supabase.table('mensagens') \
+            .select('id, texto, destinatario_id, lida, lote, criada_em') \
+            .eq('remetente_id', admin_id) \
+            .order('criada_em', desc=True) \
+            .limit(500) \
+            .execute().data or []
+    except Exception:
+        app.logger.exception('Falha ao carregar histórico de mensagens')
+        enviadas = []
+
+    grupos = {}
+    for m in enviadas:
+        chave = m['lote'] or f"id-{m['id']}"
+        g = grupos.setdefault(chave, {'texto': m['texto'], 'criada_em': m['criada_em'],
+                                      'total': 0, 'lidas': 0, 'destino': ''})
+        g['total'] += 1
+        g['lidas'] += 1 if m['lida'] else 0
+        nome = por_id.get(str(m['destinatario_id']), {}).get('nome', 'usuário removido')
+        g['destino'] = nome if g['total'] == 1 else f"{g['total']} usuários"
+    historico = list(grupos.values())[:15]
+
+    return render_template('admin_mensagens.html', usuarios=usuarios,
+                           admin_id=admin_id, historico=historico, max_chars=MSG_MAX)
 
 
 # ─── INICIAR ────────────────────────────────────────────────────
