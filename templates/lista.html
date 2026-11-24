@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista de compras — Meu Carro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Barlow+Condensed:wght@700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-family: 'Inter', sans-serif; background: #0f0f13; color: #e8e8f0; min-height: 100vh; }
+  header {
+    background: #1a1a22; border-bottom: 1px solid #2e2e3e;
+    padding: 0 24px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: #f97316; white-space: nowrap; }
+  .btn-ghost {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #2e2e3e; background: #22222e;
+    color: #e8e8f0; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap;
+  }
+  main { max-width: 680px; margin: 32px auto; padding: 0 20px; }
+  h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; color: #f97316; margin-bottom: 16px; }
+
+  .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.88rem; background: #0f2a1a; border: 1px solid #1f5a35; color: #22c55e; }
+  .flash.erro { background: #2a1010; border-color: #5a2a2a; color: #ef4444; }
+
+  .resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .resumo .card { background: #1a1a22; border: 1px solid #2e2e3e; border-radius: 12px; padding: 14px 16px; }
+  .resumo .lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: #7a7a9a; font-weight: 700; }
+  .resumo .val { font-size: 1.35rem; font-weight: 700; color: #f97316; margin-top: 4px; }
+  .resumo .sub { font-size: 0.72rem; color: #5a5a7a; margin-top: 2px; }
+
+  .form-card { background: #1a1a22; border: 1px solid #2e2e3e; border-radius: 14px; padding: 22px; margin-bottom: 24px; }
+  .form-card.editando { border-color: #f97316; }
+  .form-card h3 { font-size: 0.95rem; margin-bottom: 14px; }
+  .grupo { margin-bottom: 14px; }
+  label.l { display: block; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #7a7a9a; margin-bottom: 6px; }
+  label.l span { color: #5a5a7a; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  input[type=text], input[type=url], input[type=date], textarea {
+    width: 100%; padding: 11px 14px; background: #22222e; border: 1px solid #2e2e3e; border-radius: 8px;
+    color: #e8e8f0; font-size: 0.92rem; font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s;
+  }
+  input:focus, textarea:focus { border-color: #f97316; }
+  input[type=date] { min-width: 0; min-height: 44px; color-scheme: dark; }
+  textarea { resize: vertical; min-height: 64px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid2 > .grupo { min-width: 0; }
+
+  .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cat-btn {
+    padding: 10px; border-radius: 8px; border: 2px solid #2e2e3e; background: #22222e; color: #7a7a9a;
+    font-size: 0.85rem; font-weight: 700; text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .cat-btn input { display: none; }
+  .cat-btn:has(input:checked) { border-color: #f97316; background: #1a0f00; color: #f97316; }
+
+  .hint { font-size: 0.74rem; color: #5a5a7a; margin-top: 5px; }
+  .linha-btns { display: flex; gap: 10px; margin-top: 6px; }
+  .btn-submit {
+    flex: 1; padding: 13px; background: #f97316; color: #fff; border: none; border-radius: 8px;
+    font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: opacity .15s;
+  }
+  .btn-submit:hover { opacity: .85; }
+  .btn-cancel { padding: 13px 18px; border-radius: 8px; border: 1px solid #2e2e3e; background: #22222e; color: #e8e8f0; text-decoration: none; font-size: 0.9rem; font-weight: 600; text-align: center; }
+
+  .item { background: #1a1a22; border: 1px solid #2e2e3e; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .item.vencido { border-color: #f97316; }
+  .item.comprado { opacity: .55; }
+  .item.comprado .nome { text-decoration: line-through; }
+  .item-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .nome { font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+  .cat-tag { font-size: 0.7rem; color: #7a7a9a; margin-top: 3px; }
+  .preco { font-weight: 700; color: #fbbf24; white-space: nowrap; font-size: 0.95rem; }
+  .preco small { display: block; font-size: 0.64rem; color: #5a5a7a; font-weight: 500; text-align: right; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+  .chip { font-size: 0.74rem; padding: 4px 10px; border-radius: 20px; background: #22222e; border: 1px solid #2e2e3e; color: #b0b0c8; text-decoration: none; }
+  a.chip { color: #60a5fa; }
+  .chip.alerta { background: #f97316; border-color: #f97316; color: #fff; font-weight: 700; }
+  .chip.futuro { color: #fbbf24; }
+  .obs { font-size: 0.82rem; color: #9a9ab8; margin-top: 10px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .acoes { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .acoes form { margin: 0; }
+  .btn-sm { padding: 7px 12px; border-radius: 6px; border: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; font-family: inherit; }
+  .b-ok { background: #0f2a1a; color: #22c55e; }
+  .b-edit { background: #1a2a3a; color: #60a5fa; }
+  .b-del { background: #2a1a1a; color: #ef4444; }
+
+  .vazio { text-align: center; padding: 50px 20px; color: #7a7a9a; font-size: 0.9rem; }
+  .vazio-icon { font-size: 3rem; margin-bottom: 10px; }
+
+  @media (max-width: 600px) {
+    header { padding: 0 14px; height: 56px; }
+    .logo { font-size: 1.2rem; }
+    main { margin: 20px auto; padding: 0 12px; }
+    h2 { font-size: 1.4rem; }
+    .form-card { padding: 18px 14px; }
+    input, textarea { font-size: 16px !important; }
+    .acoes .btn-sm { flex: 1; text-align: center; padding: 10px; }
+  }
+  @media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; gap: 0; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚗 MEU CARRO</div>
+  <a href="{{ url_for('index') }}" class="btn-ghost">← Voltar</a>
+</header>
+
+<main>
+  <h2>🛒 Lista de compras</h2>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}
+      <div class="flash {{ 'erro' if cat == 'erro' else '' }}">{{ m }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="resumo">
+    <div class="card">
+      <div class="lbl">Itens a comprar</div>
+      <div class="val">{{ qtd_pendentes }}</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Total estimado</div>
+      <div class="val">R$ {{ ('%.2f'|format(total_estimado)).replace('.', ',') }}</div>
+      {% if sem_preco %}<div class="sub">{{ sem_preco }} item(ns) sem preço</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="form-card {{ 'editando' if em_edicao else '' }}">
+    <h3>{{ '✏️ Editar item' if em_edicao else '+ Novo item' }}</h3>
+    <form method="POST" action="{{ url_for('lista_salvar') }}">
+      {% if em_edicao %}<input type="hidden" name="id" value="{{ em_edicao.id }}">{% endif %}
+
+      <div class="grupo">
+        <label class="l">Nome <span style="color:#f97316">*</span></label>
+        <input type="text" name="nome" required maxlength="120"
+               placeholder="Ex: Pastilha de freio dianteira, Capa de volante..."
+               value="{{ em_edicao.nome if em_edicao else '' }}">
+      </div>
+
+      <div class="grupo">
+        {% set cat_atual = em_edicao.categoria if em_edicao else 'peca' %}
+        <div class="cat-grid">
+          {% for chave, rotulo in categorias.items() %}
+          <label class="cat-btn">
+            <input type="radio" name="categoria" value="{{ chave }}" {% if cat_atual == chave %}checked{% endif %}>
+            {{ rotulo }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="grupo">
+          <label class="l">Preço médio (R$) <span>(opcional)</span></label>
+          <input type="text" name="preco_medio" inputmode="decimal" placeholder="0,00"
+                 value="{{ ('%.2f'|format(em_edicao.preco_medio)).replace('.', ',') if em_edicao and em_edicao.preco_medio is not none else '' }}">
+        </div>
+        <div class="grupo">
+          <label class="l">Lembrar em <span>(opcional)</span></label>
+          <input type="date" name="lembrar_em" value="{{ em_edicao.lembrar_em if em_edicao and em_edicao.lembrar_em else '' }}">
+        </div>
+      </div>
+
+      <div class="grupo">
+        <label class="l">Link da loja <span>(opcional)</span></label>
+        <input type="text" name="link" inputmode="url" maxlength="2000" placeholder="https://..."
+               value="{{ em_edicao.link if em_edicao and em_edicao.link else '' }}">
+      </div>
+
+      <div class="grupo">
+        <label class="l">Observações <span>(opcional)</span></label>
+        <textarea name="observacao" maxlength="500" placeholder="Marca, código da peça, compatibilidade...">{{ em_edicao.observacao if em_edicao and em_edicao.observacao else '' }}</textarea>
+        <p class="hint">Na data escolhida, um aviso aparece na tela inicial até você marcar o item como comprado.</p>
+      </div>
+
+      <div class="linha-btns">
+        <button type="submit" class="btn-submit">{{ '💾 Salvar alterações' if em_edicao else '✅ Adicionar à lista' }}</button>
+        {% if em_edicao %}<a href="{{ url_for('lista') }}" class="btn-cancel">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </div>
+
+  {% if itens %}
+    {% for i in itens %}
+      {% set vencido = (not i.comprado) and i.lembrar_em and i.lembrar_em <= hoje %}
+      <div class="item {{ 'comprado' if i.comprado else '' }} {{ 'vencido' if vencido else '' }}">
+        <div class="item-topo">
+          <div>
+            <div class="nome">{{ i.nome }}</div>
+            <div class="cat-tag">{{ categorias.get(i.categoria, i.categoria) }}</div>
+          </div>
+          {% if i.preco_medio is not none %}
+            <div class="preco">R$ {{ ('%.2f'|format(i.preco_medio)).replace('.', ',') }}<small>preço médio</small></div>
+          {% endif %}
+        </div>
+
+        <div class="meta">
+          {% if i.lembrar_em %}
+            {% set dfmt = i.lembrar_em[8:10] ~ '/' ~ i.lembrar_em[5:7] ~ '/' ~ i.lembrar_em[:4] %}
+            {% if vencido %}
+              <span class="chip alerta">🔔 {{ 'Hoje' if i.lembrar_em == hoje else 'Desde ' ~ dfmt }}</span>
+            {% else %}
+              <span class="chip {{ '' if i.comprado else 'futuro' }}">⏰ {{ dfmt }}</span>
+            {% endif %}
+          {% endif %}
+          {% if i.link %}
+            <a class="chip" href="{{ i.link }}" target="_blank" rel="noopener noreferrer nofollow">🔗 Abrir link</a>
+          {% endif %}
+        </div>
+
+        {% if i.observacao %}<div class="obs">{{ i.observacao }}</div>{% endif %}
+
+        <div class="acoes">
+          <form method="POST" action="{{ url_for('lista_comprado', item_id=i.id) }}">
+            <button type="submit" class="btn-sm b-ok">{{ '↩️ Desmarcar' if i.comprado else '✓ Comprei' }}</button>
+          </form>
+          <a href="{{ url_for('lista', editar=i.id) }}#topo" class="btn-sm b-edit">✏️ Editar</a>
+          <form method="POST" action="{{ url_for('lista_excluir', item_id=i.id) }}"
+                onsubmit="return confirm('Remover este item da lista?')">
+            <button type="submit" class="btn-sm b-del">🗑️</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="vazio">
+      <div class="vazio-icon">🛒</div>
+      Sua lista está vazia.<br>Adicione as peças e acessórios que quer comprar.
+    </div>
+  {% endif %}
+</main>
+
+</body>
+</html>

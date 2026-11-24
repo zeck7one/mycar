@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import uuid
+from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -402,6 +403,7 @@ def index():
         total_nao_lidas=total_nao_lidas,
         eh_admin=eh_admin(),
         mencoes_novas=mencoes_nao_vistas(usuario_id),
+        lembretes_lista=lembretes_lista_pendentes(usuario_id),
         registros=registros,
         totais=totais,
         total_geral=total_geral,
@@ -570,6 +572,191 @@ def perfil():
             return redirect(url_for('perfil'))
 
     return render_template('perfil.html', usuario=usuario)
+
+
+# ─── LISTA DE COMPRAS (peças e acessórios) ──────────────────────
+# O usuário cadastra o que pretende comprar, com link e preço médio
+# opcionais, e pode definir uma data de lembrete. Quando a data chega
+# (ou passa) e o item ainda não foi comprado, aparece um aviso na home.
+
+LISTA_CATEGORIAS = {'peca': '⚙️ Peça', 'acessorio': '✨ Acessório'}
+LISTA_MAX_ITENS = 200  # evita encher o banco com lixo
+
+
+def hoje_brasilia():
+    """Data de hoje em Brasília (UTC-3), pra comparar com 'lembrar_em'."""
+    return (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+
+
+def normaliza_link(bruto):
+    """Devolve (link_ou_None, erro). Só aceita http/https — bloqueia
+    'javascript:' e afins, já que o link vira <a href> na página."""
+    bruto = (bruto or '').strip()
+    if not bruto:
+        return None, ''
+    if len(bruto) > 2000:
+        return None, 'Link muito longo.'
+    if '://' not in bruto:
+        bruto = 'https://' + bruto
+    try:
+        p = urlparse(bruto)
+        host = p.hostname or ''
+        p.port  # valida a porta (levanta ValueError se for lixo)
+    except ValueError:
+        return None, 'Link inválido (use algo como https://loja.com/peca).'
+    if p.scheme not in ('http', 'https') or '.' not in host or any(c.isspace() for c in bruto):
+        return None, 'Link inválido (use algo como https://loja.com/peca).'
+    return bruto, ''
+
+
+def lembretes_lista_pendentes(usuario_id):
+    """Itens não comprados cujo lembrete já chegou (data <= hoje)."""
+    try:
+        r = supabase.table('lista_compras') \
+            .select('id, nome, lembrar_em') \
+            .eq('usuario_id', usuario_id).eq('comprado', False) \
+            .not_.is_('lembrar_em', 'null') \
+            .lte('lembrar_em', hoje_brasilia().isoformat()) \
+            .order('lembrar_em').execute()
+        return r.data or []
+    except Exception:
+        app.logger.exception('Falha ao buscar lembretes da lista (rodou o supabase_lista_compras.sql?)')
+        return []
+
+
+def _le_form_item():
+    """Lê e valida o form de item. Retorna (dados, erro)."""
+    nome = request.form.get('nome', '').strip()
+    categoria = request.form.get('categoria', 'peca')
+    preco_txt = request.form.get('preco_medio', '').strip().replace('R$', '').replace(' ', '')
+    observacao = request.form.get('observacao', '').strip() or None
+    lembrar_em = request.form.get('lembrar_em', '').strip() or None
+
+    if not nome:
+        return None, 'Informe o nome do item.'
+    if len(nome) > 120:
+        return None, 'Nome muito longo (máximo 120 caracteres).'
+    if categoria not in LISTA_CATEGORIAS:
+        return None, 'Categoria inválida.'
+    if observacao and len(observacao) > 500:
+        return None, 'Observação muito longa (máximo 500 caracteres).'
+
+    preco = None
+    if preco_txt:
+        # aceita "1.234,56" e "1234.56"
+        if ',' in preco_txt:
+            preco_txt = preco_txt.replace('.', '').replace(',', '.')
+        try:
+            preco = round(float(preco_txt), 2)
+        except ValueError:
+            return None, 'Preço inválido.'
+        if preco < 0 or preco > 99_999_999:
+            return None, 'Preço fora do limite aceito.'
+
+    link, erro_link = normaliza_link(request.form.get('link'))
+    if erro_link:
+        return None, erro_link
+
+    if lembrar_em:
+        try:
+            datetime.strptime(lembrar_em, '%Y-%m-%d')
+        except ValueError:
+            return None, 'Data do lembrete inválida.'
+
+    return {'nome': nome, 'categoria': categoria, 'preco_medio': preco,
+            'link': link, 'observacao': observacao, 'lembrar_em': lembrar_em}, ''
+
+
+@app.route('/lista')
+@login_required
+def lista():
+    uid = session['usuario_id']
+    editar_id = request.args.get('editar', type=int)
+    try:
+        itens = supabase.table('lista_compras').select('*') \
+            .eq('usuario_id', uid) \
+            .order('id', desc=True).execute().data or []
+        # não comprados primeiro; dentro deles, lembrete mais próximo primeiro
+        # (sem data vão pro fim). Feito em Python pra não depender da versão do SDK.
+        itens.sort(key=lambda i: (i['comprado'], i.get('lembrar_em') is None, i.get('lembrar_em') or ''))
+    except Exception:
+        app.logger.exception('Falha ao listar lista_compras (rodou o supabase_lista_compras.sql?)')
+        flash('Lista indisponível. Rode o supabase_lista_compras.sql no Supabase.', 'erro')
+        itens = []
+
+    hoje = hoje_brasilia().isoformat()
+    pendentes = [i for i in itens if not i['comprado']]
+    total_estimado = sum(float(i['preco_medio']) for i in pendentes if i.get('preco_medio') is not None)
+    sem_preco = sum(1 for i in pendentes if i.get('preco_medio') is None)
+    em_edicao = next((i for i in itens if i['id'] == editar_id), None) if editar_id else None
+
+    return render_template('lista.html', itens=itens, hoje=hoje,
+                           total_estimado=total_estimado, sem_preco=sem_preco,
+                           qtd_pendentes=len(pendentes), em_edicao=em_edicao,
+                           categorias=LISTA_CATEGORIAS)
+
+
+@app.route('/lista/salvar', methods=['POST'])
+@login_required
+def lista_salvar():
+    uid = session['usuario_id']
+    item_id = request.form.get('id', type=int)
+    dados, erro = _le_form_item()
+    if erro:
+        flash(erro, 'erro')
+        return redirect(url_for('lista', editar=item_id) if item_id else url_for('lista'))
+
+    try:
+        if item_id:
+            r = supabase.table('lista_compras').update(dados) \
+                .eq('id', item_id).eq('usuario_id', uid).execute()
+            if not r.data:
+                flash('Item não encontrado!', 'erro')
+            else:
+                flash('Item atualizado!', 'sucesso')
+        else:
+            qtd = supabase.table('lista_compras').select('id', count='exact') \
+                .eq('usuario_id', uid).limit(1).execute().count or 0
+            if qtd >= LISTA_MAX_ITENS:
+                flash(f'Limite de {LISTA_MAX_ITENS} itens na lista. Apague alguns antes.', 'erro')
+                return redirect(url_for('lista'))
+            dados['usuario_id'] = uid
+            supabase.table('lista_compras').insert(dados).execute()
+            flash('Item adicionado à lista!', 'sucesso')
+    except Exception:
+        app.logger.exception('Falha ao salvar item da lista')
+        flash('Erro ao salvar. Rodou o supabase_lista_compras.sql? (veja os Logs)', 'erro')
+    return redirect(url_for('lista'))
+
+
+@app.route('/lista/<int:item_id>/comprado', methods=['POST'])
+@login_required
+def lista_comprado(item_id):
+    uid = session['usuario_id']
+    try:
+        r = supabase.table('lista_compras').select('comprado') \
+            .eq('id', item_id).eq('usuario_id', uid).execute().data
+        if r:
+            supabase.table('lista_compras').update({'comprado': not r[0]['comprado']}) \
+                .eq('id', item_id).eq('usuario_id', uid).execute()
+    except Exception:
+        app.logger.exception('Falha ao marcar item como comprado')
+        flash('Erro ao atualizar o item.', 'erro')
+    return redirect(url_for('lista'))
+
+
+@app.route('/lista/<int:item_id>/excluir', methods=['POST'])
+@login_required
+def lista_excluir(item_id):
+    uid = session['usuario_id']
+    try:
+        supabase.table('lista_compras').delete() \
+            .eq('id', item_id).eq('usuario_id', uid).execute()
+        flash('Item removido da lista.', 'sucesso')
+    except Exception:
+        app.logger.exception('Falha ao excluir item da lista')
+        flash('Erro ao excluir o item.', 'erro')
+    return redirect(url_for('lista'))
 
 
 # ─── MENSAGENS (usuário) ────────────────────────────────────────

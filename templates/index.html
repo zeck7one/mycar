@@ -438,6 +438,7 @@
       <span class="status-badge status-on">🔓 Logado</span>
       <a href="{{ url_for('mensagens') }}" class="btn btn-ghost btn-icon" title="Mensagens">📩{% if total_nao_lidas %}<span class="badge-n">{{ total_nao_lidas if total_nao_lidas < 100 else '99+' }}</span>{% endif %}</a>
       {% if eh_admin %}<a href="{{ url_for('admin_mensagens') }}" class="btn btn-ghost btn-icon" title="Painel admin">🛡️</a>{% endif %}
+      <a href="{{ url_for('lista') }}" class="btn btn-ghost btn-icon" title="Lista de compras">🛒{% if lembretes_lista %}<span class="badge-n">{{ lembretes_lista|length if lembretes_lista|length < 100 else '99+' }}</span>{% endif %}</a>
       <a href="/configurar" class="btn btn-ghost">⚙️</a>
       <a href="/adicionar" class="btn btn-primary">+ Novo</a>
       <a href="/logout" class="btn btn-ghost">Sair</a>
@@ -457,6 +458,21 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
+
+  {% if lembretes_lista %}
+  <div class="aviso-msg">
+    <div class="aviso-titulo">🛒 Lembrete: {{ lembretes_lista|length }} ite{{ 'm' if lembretes_lista|length == 1 else 'ns' }} da sua lista de compras</div>
+    {% for l in lembretes_lista[:5] %}
+      <div class="aviso-item">{{ l.nome }} {% if l.lembrar_em %}<span style="opacity:.7">· {{ l.lembrar_em[8:10] }}/{{ l.lembrar_em[5:7] }}/{{ l.lembrar_em[:4] }}</span>{% endif %}</div>
+    {% endfor %}
+    {% if lembretes_lista|length > 5 %}
+      <div class="aviso-mais">+ {{ lembretes_lista|length - 5 }} mais</div>
+    {% endif %}
+    <div class="aviso-acoes">
+      <a href="{{ url_for('lista') }}" class="btn btn-primary">Abrir lista</a>
+    </div>
+  </div>
+  {% endif %}
 
   {% if mensagens_novas %}
   <div class="aviso-msg">
